@@ -210,6 +210,16 @@ ipcMain.on('open-pk-zip-choosing', async () => {
   if (!result.canceled) mainWindow.webContents.send('choose-pk-zip', result.filePaths[0]);
 })
 
+ipcMain.on('open-implant-zip-choosing', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [
+      { name: 'Zip Files', extensions: ['zip'] }
+    ]
+  });
+  if (!result.canceled) mainWindow.webContents.send('choose-implant-zip', result.filePaths[0]);
+})
+
 // 响应体更改规则相关IPC处理
 ipcMain.handle('get-response-rules', () => {
   try {
@@ -335,6 +345,18 @@ ipcMain.handle('clear-cache', async () => {
     return 1;
   } catch (error) {
     return 0;
+  }
+});
+
+ipcMain.handle('import-implant-zip', async (event, sourcePath) => {
+  try {
+    return await answerProxy.importZipToDir(sourcePath);
+  } catch (error) {
+    console.error('导入压缩包失败:', error);
+    return {
+      success: false,
+      error: error.message
+    };
   }
 });
 

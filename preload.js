@@ -335,6 +335,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   chooseFile: (callback) => ipcRenderer.on('choose-file', callback),
   openPkZipChoosing: () => ipcRenderer.send('open-pk-zip-choosing'),
   choosePkZip: (callback) => ipcRenderer.on('choose-pk-zip', (event, filePath) => callback(filePath)),
+  openImplantZipChoosing: () => ipcRenderer.send('open-implant-zip-choosing'),
+  chooseImplantZip: (callback) => ipcRenderer.on('choose-implant-zip', (event, filePath) => callback(filePath)),
+  importImplantZip: (sourcePath) => ipcRenderer.invoke('import-implant-zip', sourcePath),
   setCachePath: (cachePath) => {
     try {
       const normalizedPath = path.resolve(cachePath);

@@ -52,6 +52,38 @@ class AnswerProxy {
     }
   }
 
+  // 导入压缩包到fileDir
+  async importZipToDir(sourcePath) {
+    try {
+      // 确保fileDir存在
+      fs.ensureDirSync(fileDir);
+
+      // 检查源文件是否存在
+      if (!fs.existsSync(sourcePath)) {
+        throw new Error('源文件不存在');
+      }
+
+      // 获取文件名
+      const fileName = path.basename(sourcePath);
+      const destPath = path.join(fileDir, fileName);
+
+      // 复制文件到fileDir
+      fs.copyFileSync(sourcePath, destPath);
+
+      return {
+        success: true,
+        message: `成功导入压缩包: ${fileName}`,
+        path: destPath
+      };
+    } catch (error) {
+      console.error('导入压缩包失败:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
   // 安全的IPC发送函数
   safeIpcSend(channel, data) {
     try {

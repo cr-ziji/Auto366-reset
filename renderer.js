@@ -77,6 +77,10 @@ class UniversalAnswerFeature {
       this.stopProxy();
     });
 
+    document.getElementById('appendImplantBtn').addEventListener('click', () => {
+      this.appendImplant();
+    });
+
     document.getElementById('deleteTempBtn').addEventListener('click', () => {
       this.handleDeleteTemp();
     });
@@ -94,8 +98,6 @@ class UniversalAnswerFeature {
   }
 
   initIpcListeners() {
-
-
     // 监听代理状态
     window.electronAPI.onProxyStatus((event, data) => {
       this.updateProxyStatus(data);
@@ -175,6 +177,20 @@ class UniversalAnswerFeature {
     // 监听文件处理结果
     window.electronAPI.onFilesProcessed((event, data) => {
       this.displayProcessedFiles(data);
+    });
+
+    window.electronAPI.chooseImplantZip(async (filePath) => {
+      if (!filePath) {
+        this.addErrorLog('未选择文件');
+        return;
+      }
+      this.addInfoLog(`正在导入压缩包: ${filePath}`);
+      const result = await window.electronAPI.importImplantZip(filePath);
+      if (result.success) {
+        this.addSuccessLog(result.message);
+      } else {
+        this.addErrorLog(`导入失败: ${result.error}`);
+      }
     });
   }
 
@@ -1110,6 +1126,10 @@ class UniversalAnswerFeature {
       shareBtn.disabled = false;
       shareBtn.textContent = '分享答案';
     }
+  }
+
+  async appendImplant(){
+    window.electronAPI.openImplantZipChoosing();
   }
 }
 
