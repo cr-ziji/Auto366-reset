@@ -18,7 +18,6 @@ const rulesDir = path.join(app.getPath('userData'), 'response-rules');
 class AnswerProxy {
   constructor() {
     this.proxyAgent = null;
-    this.extractedAnswers = [];
     this.downloadUrl = '';
     this.mainWindow = null;
     this.trafficCache = new Map();
@@ -29,11 +28,6 @@ class AnswerProxy {
     this.bucketServer = null; // 本地词库HTTP服务器
 
     this.loadResponseRules();
-  }
-
-  // 设置主窗口引用
-  setMainWindow(window) {
-    this.mainWindow = window;
   }
 
   findLocalFile(url) {
@@ -549,17 +543,7 @@ class AnswerProxy {
         rejectUnauthorized: false
       },
       sslConnectInterceptor: (req, cltSocket, head) => {
-        try {
-          // 只拦截浏览器的https请求
-          if (req.headers && req.headers['user-agent'] && /^Mozilla/.test(req.headers['user-agent'])) {
-            return true;
-          } else {
-            return false;
-          }
-        } catch (error) {
-          console.error('SSL连接拦截器错误:', error);
-          return false;
-        }
+        return true;
       },
       requestInterceptor: (requestOptions, clientReq, clientRes, ssl, next) => {
         try {
@@ -647,7 +631,7 @@ class AnswerProxy {
           const contentEncoding = proxyRes.headers['content-encoding'] || '';
           const isJson = /application\/json/.test(contentType);
           const isFile = /application\/octet-stream|image/.test(contentType);
-          const contentLengthIsZero = proxyRes.headers['content-length'] == 0;
+          const contentLengthIsZero = proxyRes.headers['content-length'] === 0;
           const isCompressed = Boolean(contentEncoding) && !isFile;
 
           // console.log(`请求: ${fullUrl}, 内容类型: ${contentType}, 是否压缩: ${isCompressed}`);
@@ -678,8 +662,8 @@ class AnswerProxy {
               // 只有在内容长度不为0时才处理响应体
               if (!contentLengthIsZero) {
                 // 解压缩响应体
-                let responseBody = '';
-                let decompressedBuffer = responseBuffer;
+                let responseBody;
+                let decompressedBuffer;
                 if (isCompressed) {
                   // console.log(`开始解压缩响应 (${contentEncoding})`);
                   const decompressed = await this.decompressResponse(responseBuffer, contentEncoding);
@@ -752,7 +736,7 @@ class AnswerProxy {
 
               // 设置所有响应头（在writeHead之前）
               Object.keys(proxyRes.headers).forEach(function (key) {
-                if (proxyRes.headers[key] != undefined) {
+                if (proxyRes.headers[key] !== undefined) {
                   if (key.toLowerCase() === 'content-length') {
                     // 使用最终buffer的长度
                     res.setHeader(key, finalBuffer.length);
@@ -985,42 +969,6 @@ class AnswerProxy {
     } catch (e) {
       console.error('启动词库HTTP服务器失败:', e);
       this.bucketServer = null;
-    }
-  }
-
-  // 提取下载链接
-  extractDownloadUrl(data) {
-    try {
-      const patterns = [
-        /"downloadUrl":"(.*?)"/,
-        /"downloadUrl":\s*"(.*?)"/,
-        /downloadUrl['"]\s*:\s*['"]([^'"]+)['"]/
-      ];
-
-      for (const pattern of patterns) {
-        const match = data.match(pattern);
-        if (match && match[1]) {
-          const url = match[1].replace(/\"/g, '"').replace(/\\/ / g, '/');
-
-          // 只处理 fs.域名/download/ 格式的链接
-          if (url.includes('fs.') && url.includes('/download/')) {
-            this.downloadUrl = url;
-            console.log('发现答案下载链接:', url);
-            this.safeIpcSend('download-found', { url: this.downloadUrl });
-            this.downloadAndProcessFile(this.downloadUrl);
-            return;
-          } else {
-            console.log('跳过非答案下载链接:', url);
-            this.safeIpcSend('traffic-log', {
-              method: 'INFO',
-              url: `跳过链接: ${url} (不符合 fs.域名/download/ 格式)`,
-              timestamp: new Date().toISOString()
-            });
-          }
-        }
-      }
-    } catch (error) {
-      console.error('提取下载链接失败:', error);
     }
   }
 
@@ -1343,7 +1291,6 @@ class AnswerProxy {
     try {
       const config = typeof fileContent === 'string' ? JSON.parse(fileContent) : fileContent;
       const questionObj = config.questionObj || {};
-      const results = [];
 
       // 1. 精确检测类型
       const detectedType = this.detectExactType(questionObj);
@@ -1545,7 +1492,7 @@ class AnswerProxy {
 
           paragraphs.forEach((paragraph, pIndex) => {
             results.push({
-              question: `第${itemIndex + 1}题-${pIndex == 0 ? '原文' : `参考答案${pIndex}`}`,
+              question: `第${itemIndex + 1}题-${pIndex === 0 ? '原文' : `参考答案${pIndex}`}`,
               answer: paragraph,
               content: `请回答: ${paragraph}`,
               pattern: '听后转述'
@@ -1566,7 +1513,7 @@ class AnswerProxy {
     if (questionObj.analysis) {
       const cleanAnalysis = questionObj.analysis
         .replace(/<[^>]*>/g, '') // 移除HTML标签
-        .replace(/参考答案[一二一二]：/g, '') // 移除参考答案标记
+        .replace(/参考答案[一二]：/g, '') // 移除参考答案标记
         .trim();
 
       if (cleanAnalysis) {
@@ -1641,7 +1588,7 @@ class AnswerProxy {
         return []
       }
 
-      return this.parseQuestionFile(content)
+      return this.parseQuestionFile(jsonData)
     } catch (error) {
       console.error(`解析JS文件失败: ${filePath}`, error);
       return [];
@@ -1829,12 +1776,12 @@ class AnswerProxy {
 
           let analysisText = '';
 
-          const analysisMatch = elementContent.match(/<analysis>\s*<!\[CDATA\[(.*?)\]\]>\s*<\/analysis>/s);
+          const analysisMatch = elementContent.match(/<analysis>\s*<!\[CDATA\[(.*?)]]>\s*<\/analysis>/s);
           if (analysisMatch && analysisMatch[1]) {
             analysisText = analysisMatch[1].replace(/<[^>]*>/g, '').trim();
           }
 
-          const answersMatch = elementContent.match(/<answers>\s*<!\[CDATA\[([^\]]+)\]\]>\s*<\/answers>/);
+          const answersMatch = elementContent.match(/<answers>\s*<!\[CDATA\[([^\]]+)]]>\s*<\/answers>/);
           if (answersMatch && answersMatch[1]) {
             const answerText = answersMatch[1].trim();
             answers.push({
@@ -1845,7 +1792,7 @@ class AnswerProxy {
               elementId: elementId
             });
           } else {
-            const answerMatches = [...elementContent.matchAll(/<answer[^>]*>\s*<!\[CDATA\[([^\]]+)\]\]>\s*<\/answer>/g)];
+            const answerMatches = [...elementContent.matchAll(/<answer[^>]*>\s*<!\[CDATA\[([^\]]+)]]>\s*<\/answer>/g)];
 
             if (answerMatches.length > 0) {
               answerMatches.forEach((answerMatch, answerIndex) => {
@@ -1878,9 +1825,9 @@ class AnswerProxy {
           const questionNoMatch = elementContent.match(/<question_no>(\d+)<\/question_no>/);
 
           // 提取题目文本
-          const questionTextMatch = elementContent.match(/<question_text>\s*<!\[CDATA\[(.*?)\]\]>\s*<\/question_text>/s);
+          const questionTextMatch = elementContent.match(/<question_text>\s*<!\[CDATA\[(.*?)]]>\s*<\/question_text>/s);
 
-          const knowledgeMatch = elementContent.match(/<knowledge>\s*<!\[CDATA\[([^\]]+)\]\]>\s*<\/knowledge>/);
+          const knowledgeMatch = elementContent.match(/<knowledge>\s*<!\[CDATA\[([^\]]+)]]>\s*<\/knowledge>/);
 
           if (questionNoMatch && questionTextMatch) {
             const questionNo = parseInt(questionNoMatch[1]);
@@ -1888,7 +1835,7 @@ class AnswerProxy {
 
             questionText = questionText.replace(/<img[^>]*>/g, '[音频]').replace(/<[^>]*>/g, '').trim();
 
-            const optionsMatches = [...elementContent.matchAll(/<option\s+id="([^"]+)"\s*[^>]*>\s*<!\[CDATA\[(.*?)\]\]>\s*<\/option>/gs)];
+            const optionsMatches = [...elementContent.matchAll(/<option\s+id="([^"]+)"\s*[^>]*>\s*<!\[CDATA\[(.*?)]]>\s*<\/option>/gs)];
 
             let answerInfo = {
               question: `第${questionNo}题`,
@@ -1931,7 +1878,6 @@ class AnswerProxy {
 
     let content = fileInfo.responseBody
     if (fileInfo.contentType && (fileInfo.contentType.includes('image') || fileInfo.contentType.includes('octet-stream'))) {
-      content = fileInfo.originalResponse
       await fs.promises.writeFile(filePath, fileInfo.originalResponse);
     } else {
       const textContent = typeof content === 'string' ? content : fileInfo.originalResponse.toString('utf-8');
@@ -2024,13 +1970,6 @@ class AnswerProxy {
             responseBody = responseBody.replace(/"objectMD5":"[^"]+"/g, `"objectMD5":"${md5}"`);
             responseBody = responseBody.replace(/"filesize":\d+/g, `"filesize":${size}`);
             responseBody = responseBody.replace(/"objectSize":\d+/g, `"objectSize":${size}`);
-
-            // 继续让答案下载提取逻辑有机会工作
-            try {
-              this.extractDownloadUrl(responseBody);
-            } catch (e) {
-              console.error('调用extractDownloadUrl失败:', e);
-            }
 
             const modifiedBuffer = Buffer.from(responseBody, 'utf-8');
 
@@ -2126,7 +2065,7 @@ class AnswerProxy {
         });
         req.on('error', (error) => {
           console.error('文件请求转发错误:', error);
-          this.releaseRequestWithError({ clientRes }, error);
+          this.handleFileInfoError({ clientRes }, error);
         });
         if (clientReq.method === 'POST' || clientReq.method === 'PUT') {
           clientReq.pipe(req);
@@ -2135,7 +2074,7 @@ class AnswerProxy {
         }
       } catch (error) {
         console.error('创建文件转发请求失败:', error);
-        this.releaseRequestWithError({ clientRes }, error);
+        this.handleFileInfoError({ clientRes }, error);
       }
       return;
     }
