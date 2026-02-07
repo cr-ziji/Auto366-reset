@@ -1,9 +1,11 @@
 
 <div align=center><img src="icon_black.png"></div>
 
-# Auto366
+# Auto366-reset
 
-天学网自动化答题工具！解放双手，提高学习效率！
+天学网自动化答题工具！解放双手，提高学习效率！-重置版
+
+原项目地址：[https://github.com/CyrilGuoCODE/Auto366](https://github.com/CyrilGuoCODE/Auto366)
 
 ## 警告
 
