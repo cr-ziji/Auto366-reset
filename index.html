@@ -19,92 +19,6 @@
     <button class="settings-btn"><img src="setting.svg" alt="设置" class="settings-icon"> 设置</button>
 
     <div class="container">
-<!--        <div id="wordpk-content" class="content-area">-->
-<!--            <button class="back-btn">返回</button>-->
-<!--            <h1>单词PK自动注入</h1>-->
-
-<!--            <div class="tutorial">-->
-<!--                <h2>使用教程</h2>-->
-<!--                <ol>-->
-<!--                    <li><strong>启动代理：</strong>确保代理服务器已启动（在万能答案获取启动）</li>-->
-<!--                    <li><strong>删除缓存：</strong>点击"清理缓存"按钮，清理缓存</li>-->
-<!--                    <li><strong>设置代理：</strong>在天学网客户端中设置代理为 127.0.0.1:5291</li>-->
-<!--                    <li><strong>开始练习：</strong>正常进入单词PK练习，程序会自动注入脚本</li>-->
-<!--                    <li><strong>自动答题：</strong>注入成功后，点击控制面板的"开始PK"按钮后点击天学网的开始PK按钮即可开始自动答题</li>-->
-<!--                    <div class="proxy-notice">-->
-<!--                        <strong>⚠️ 重要提示：</strong>-->
-<!--                            <ul>-->
-<!--                                <li>请保持本地端口127.0.0.1:5291和127.0.0.1:5290不被其他程序占用</li>-->
-<!--                                <li>在启用单词PK自动化前，请确保代理服务器已启动并正确设置</li>-->
-<!--                                <li>在启用单词PK自动化期间，万能答案获取是<strong>不能获取到答案的</strong></li>-->
-<!--                            </ul>-->
-<!--                        </div>-->
-<!--                </ol>-->
-<!--            </div>-->
-
-<!--            <div class="pkstatus-container">-->
-<!--                <div class="pkstatus-item">-->
-<!--                    <span class="pkstatus-label">注入状态：</span>-->
-<!--                    <span id="injection-status" class="pkstatus-value">等待中</span>-->
-<!--                </div>-->
-<!--                <div class="pkstatus-item">-->
-<!--                    <span class="pkstatus-label">处理请求：</span>-->
-<!--                    <span id="processed-requests" class="pkstatus-value">0</span>-->
-<!--                </div>-->
-<!--            </div>-->
-
-<!--            <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">-->
-<!--                <label style="display: block; margin-bottom: 10px; font-weight: bold;">单词PK自动化设置：</label>-->
-<!--                <div style="display: grid; grid-template-columns: 120px 1fr auto; gap: 8px 10px; font-size: 12px; align-items: center;">-->
-<!--                    <span>自定义Zip文件路径：</span>-->
-<!--                    <input id="pkZipPath" type="text" readonly style="width: 100%; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; background: #f5f5f5;">-->
-<!--                    <button id="choosePkZip">选择zip文件</button>-->
-<!--                    <span>MD5（hex）：</span>-->
-<!--                    <input id="pkMd5" type="text" readonly style="width: 100%; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; background: #f5f5f5;">-->
-<!--                    <span></span>-->
-<!--                    <span>MD5（base64）：</span>-->
-<!--                    <input id="pkMd5Base64" type="text" readonly style="width: 100%; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; background: #f5f5f5;">-->
-<!--                    <span></span>-->
-<!--                    <span>文件大小（字节）：</span>-->
-<!--                    <input id="pkSize" type="number" readonly style="width: 100%; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; background: #f5f5f5;">-->
-<!--                    <span></span>-->
-<!--                </div>-->
-<!--                <div style="margin-top: 10px;">-->
-<!--                    <button id="savePkConfig">保存设置</button>-->
-<!--                </div>-->
-<!--                <div style="margin-top: 8px; font-size: 12px; color: #666;">-->
-<!--                    <div>设置会保存在本地，并在每次启动时自动应用。留空即为该版本默认设定。</div>-->
-<!--                </div>-->
-<!--                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">-->
-<!--                    <label for="importPkWordList" style="display: inline-block; margin-right: 10px;">导入词库文件：</label>-->
-<!--                    <input type="file" id="importPkWordList" accept=".txt" style="display: none;">-->
-<!--                    <button id="importPkWordListBtn">选择TXT文件</button>-->
-<!--                    <span id="importPkWordListStatus" style="margin-left: 10px; color: #666; font-size: 12px;"></span>-->
-<!--                </div>-->
-<!--            </div>-->
-
-<!--            <div class="buttons">-->
-<!--                <button id="togglePkAuto">开启单词PK自动化</button>-->
-<!--                <button id="clearPkCache" class="delete-btn">清理缓存</button>-->
-<!--            </div>-->
-
-<!--            <div id="result">-->
-<!--                欢迎使用单词PK自动注入功能！<br>-->
-<!--                此功能会自动在单词PK练习中注入答题脚本<br>-->
-<!--                请确保代理服务器已启动并正确设置<br>-->
-<!--                <div id="pk-injection-log"-->
-<!--                    style="margin-top: 10px; max-height: 200px; overflow-y: auto; background: #f5f5f5; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px;">-->
-<!--                </div>-->
-<!--            </div>-->
-
-<!--            <div-->
-<!--                style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666; font-size: 12px;">-->
-<!--                <p><strong>免责声明</strong>：本工具仅供学习和研究使用并且<strong>完全免费提供</strong>，使用者需自行承担使用风险，开发者不承担任何法律责任。</p>-->
-<!--                <p>项目地址：<a href="https://github.com/cyrilguocode/Auto366" target="_blank"-->
-<!--                        style="color: #007bff;">https://github.com/cyrilguocode/Auto366</a></p>-->
-<!--                <p>许可证：GNU General Public License v3.0</p>-->
-<!--            </div>-->
-<!--        </div>-->
         <div id="universal-answer-content" class="content-area">
             <h1>万能答案获取</h1>
 
@@ -132,7 +46,6 @@
                     <button id="startProxyBtn">启动代理服务器</button>
                     <button id="stopProxyBtn" disabled>停止代理服务器</button>
                     <button id="responseRulesBtn">更改响应体规则</button>
-                    <button id="testRulesBtn" class="test-btn" style="display: none;">测试规则功能</button>
                     <button id="deleteTempBtn" class="delete-btn">删除缓存</button>
                 </div>
 

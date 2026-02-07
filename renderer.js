@@ -1,17 +1,4 @@
 let cachePath = ''
-function pathJoin(...parts) {
-  // 过滤空部分并拼接
-  const filteredParts = parts.filter(part => part && part !== '.');
-
-  // 拼接路径并规范化
-  let joined = filteredParts.join('/')
-    .replace(/\/+/g, '/')          // 将多个斜杠替换为单个斜杠
-    .replace(/^\/+|\/+$/g, '')     // 移除开头和结尾的斜杠
-    .replace(/\/\.\//g, '/')       // 处理当前目录引用
-    .replace(/\/[^\/]+\/\.\.\//g, '/'); // 简单的上级目录处理
-
-  return joined;
-}
 class Global {
   constructor() {
     this.initSettingsBtn()
@@ -71,324 +58,9 @@ class Global {
   }
 }
 
-// class WordPKFeature {
-//   constructor() {
-//     this.injectionStatus = '等待中';
-//     this.processedRequests = 0;
-//     this.pkConfigKey = 'auto366_pk_config';
-//     this.pkConfig = null;
-//     this.pkEnabled = false;
-//     this.initEventListeners();
-//     this.initIpcListeners();
-//     this.loadPkConfig();
-//     this.updateStatus();
-//   }
-//
-//   getDefaultPkConfig() {
-//     return {
-//       enabled: false,
-//       zipPath: '',
-//       md5: '',
-//       md5Base64: '',
-//       size: 0
-//     };
-//   }
-//
-//   loadPkConfigFromStorage() {
-//     try {
-//       const raw = window.localStorage.getItem(this.pkConfigKey);
-//       if (!raw) return this.getDefaultPkConfig();
-//       const parsed = JSON.parse(raw);
-//       return Object.assign(this.getDefaultPkConfig(), parsed || {});
-//     } catch (e) {
-//       console.error('读取PK配置失败:', e);
-//       return this.getDefaultPkConfig();
-//     }
-//   }
-//
-//   savePkConfigToStorage(config) {
-//     try {
-//       window.localStorage.setItem(this.pkConfigKey, JSON.stringify(config || this.pkConfig || this.getDefaultPkConfig()));
-//     } catch (e) {
-//       console.error('保存PK配置到localStorage失败:', e);
-//     }
-//   }
-//
-//   async loadPkConfig() {
-//     try {
-//       const stored = this.loadPkConfigFromStorage();
-//       const backend = await window.electronAPI.getPkConfig();
-//       const serverCfg = (backend && backend.success && backend.config) ? backend.config : {};
-//       const cfg = this.getDefaultPkConfig();
-//
-//       cfg.zipPath = (stored.zipPath && stored.zipPath.trim())
-//         || serverCfg.zipPath
-//         || cfg.zipPath;
-//
-//       cfg.md5 = (stored.md5 && stored.md5.trim())
-//         || serverCfg.md5
-//         || cfg.md5;
-//
-//       cfg.md5Base64 = (stored.md5Base64 && stored.md5Base64.trim())
-//         || serverCfg.md5Base64
-//         || cfg.md5Base64;
-//
-//       const storedSize = Number.isFinite(stored.size) && stored.size > 0 ? stored.size : 0;
-//       const serverSize = Number.isFinite(serverCfg.size) && serverCfg.size > 0 ? serverCfg.size : 0;
-//       cfg.size = storedSize || serverSize || cfg.size;
-//
-//       this.pkConfig = cfg;
-//       this.pkEnabled = !!serverCfg.enabled;
-//       this.applyPkConfigToForm();
-//       this.updateToggleButtonText();
-//       await this.syncPkConfigToBackend();
-//     } catch (error) {
-//       console.error('加载PK配置失败:', error);
-//     }
-//   }
-//
-//   applyPkConfigToForm() {
-//     const cfg = this.pkConfig || this.getDefaultPkConfig();
-//     const zipPathEl = document.getElementById('pkZipPath');
-//     const md5El = document.getElementById('pkMd5');
-//     const md5b64El = document.getElementById('pkMd5Base64');
-//     const sizeEl = document.getElementById('pkSize');
-//     if (zipPathEl) zipPathEl.value = cfg.zipPath || '';
-//     if (md5El) md5El.value = cfg.md5 || '';
-//     if (md5b64El) md5b64El.value = cfg.md5Base64 || '';
-//     if (sizeEl) sizeEl.value = cfg.size || 0;
-//   }
-//
-//   readPkConfigFromForm() {
-//     const zipPathEl = document.getElementById('pkZipPath');
-//     const cfg = this.getDefaultPkConfig();
-//     if (zipPathEl) cfg.zipPath = zipPathEl.value || '';
-//     this.pkConfig = cfg;
-//     return cfg;
-//   }
-//
-//   async syncPkConfigToBackend() {
-//     try {
-//       const payload = {
-//         enabled: !!this.pkEnabled,
-//         zipPath: this.pkConfig && this.pkConfig.zipPath ? this.pkConfig.zipPath : ''
-//       };
-//       const result = await window.electronAPI.setPkConfig(payload);
-//       if (!result || !result.success) {
-//         this.addLog(`同步PK配置到后端失败: ${(result && result.error) || '未知错误'}`, 'error');
-//       } else {
-//         this.addLog('单词PK自动化配置已应用', 'info');
-//       }
-//     } catch (e) {
-//       console.error('同步PK配置到后端失败:', e);
-//       this.addLog(`同步PK配置到后端失败: ${e.message}`, 'error');
-//     }
-//   }
-//
-//   initEventListeners() {
-//     document.getElementById('clearPkCache').addEventListener('click', () => {
-//       this.handleClearCache();
-//     });
-//
-//     const savePkBtn = document.getElementById('savePkConfig');
-//     if (savePkBtn) {
-//       savePkBtn.addEventListener('click', async () => {
-//         this.readPkConfigFromForm();
-//         this.savePkConfigToStorage(this.pkConfig);
-//         await this.syncPkConfigToBackend();
-//       });
-//     }
-//
-//     const choosePkZipBtn = document.getElementById('choosePkZip');
-//     if (choosePkZipBtn) {
-//       choosePkZipBtn.addEventListener('click', () => {
-//         window.electronAPI.openPkZipChoosing();
-//       });
-//     }
-//
-//     if (window.electronAPI.choosePkZip) {
-//       window.electronAPI.choosePkZip((filePath) => {
-//         if (!filePath) return;
-//         const zipPathEl = document.getElementById('pkZipPath');
-//         if (zipPathEl) {
-//           zipPathEl.value = filePath;
-//         }
-//         this.readPkConfigFromForm();
-//         this.savePkConfigToStorage(this.pkConfig);
-//         this.syncPkConfigToBackend().then(async () => {
-//           try {
-//             const backend = await window.electronAPI.getPkConfig();
-//             if (backend && backend.success && backend.config) {
-//               this.pkConfig = Object.assign(this.getDefaultPkConfig(), backend.config);
-//               this.applyPkConfigToForm();
-//             }
-//           } catch (e) {
-//             console.error('刷新PK配置失败:', e);
-//           }
-//         });
-//       });
-//     }
-//
-//     const toggleBtn = document.getElementById('togglePkAuto');
-//     if (toggleBtn) {
-//       toggleBtn.addEventListener('click', async () => {
-//         this.pkEnabled = !this.pkEnabled;
-//         await this.syncPkConfigToBackend();
-//         this.updateToggleButtonText();
-//       });
-//     }
-//
-//     const importPkWordListBtn = document.getElementById('importPkWordListBtn');
-//     const importPkWordListInput = document.getElementById('importPkWordList');
-//     const importPkWordListStatus = document.getElementById('importPkWordListStatus');
-//
-//     if (importPkWordListBtn && importPkWordListInput) {
-//       importPkWordListBtn.addEventListener('click', () => {
-//         importPkWordListInput.click();
-//       });
-//
-//       importPkWordListInput.addEventListener('change', async (e) => {
-//         const file = e.target.files[0];
-//         if (!file) return;
-//
-//         if (!file.name.endsWith('.txt')) {
-//           importPkWordListStatus.textContent = '错误：请选择txt文件';
-//           importPkWordListStatus.style.color = '#dc3545';
-//           return;
-//         }
-//
-//         importPkWordListStatus.textContent = '正在导入...';
-//         importPkWordListStatus.style.color = '#666';
-//
-//         try {
-//           const fileContent = await file.text();
-//           const result = await window.electronAPI.importPkWordList(fileContent);
-//
-//           if (result.success) {
-//             importPkWordListStatus.textContent = '导入成功';
-//             importPkWordListStatus.style.color = '#28a745';
-//             this.addLog('词库文件导入成功', 'success');
-//             setTimeout(() => {
-//               importPkWordListStatus.textContent = '';
-//             }, 3000);
-//           } else {
-//             importPkWordListStatus.textContent = `导入失败: ${result.error}`;
-//             importPkWordListStatus.style.color = '#dc3545';
-//             this.addLog(`词库文件导入失败: ${result.error}`, 'error');
-//           }
-//         } catch (error) {
-//           importPkWordListStatus.textContent = `导入失败: ${error.message}`;
-//           importPkWordListStatus.style.color = '#dc3545';
-//           this.addLog(`词库文件导入失败: ${error.message}`, 'error');
-//         }
-//
-//         importPkWordListInput.value = '';
-//       });
-//     }
-//   }
-//
-//   updateToggleButtonText() {
-//     const toggleBtn = document.getElementById('togglePkAuto');
-//     if (!toggleBtn) return;
-//     toggleBtn.textContent = this.pkEnabled ? '关闭单词PK自动化' : '开启单词PK自动化';
-//   }
-//
-//   initIpcListeners() {
-//     // 监听PK注入相关事件
-//     window.electronAPI.onPkInjectionStart((data) => {
-//       this.injectionStatus = '注入中';
-//       const url = data?.url || '未知URL';
-//       this.addLog(`开始处理PK注入: ${url}`, 'info');
-//       this.updateStatus();
-//     });
-//
-//     window.electronAPI.onPkInjectionSuccess((data) => {
-//       this.injectionStatus = '注入成功';
-//       this.processedRequests++;
-//       const message = data?.message || 'PK注入成功';
-//       this.addLog(`PK注入成功: ${message}`, 'success');
-//       this.updateStatus();
-//     });
-//
-//     window.electronAPI.onPkInjectionError((data) => {
-//       this.injectionStatus = '注入失败';
-//       const error = data?.error || '未知错误';
-//       this.addLog(`PK注入失败: ${error}`, 'error');
-//       this.updateStatus();
-//     });
-//
-//     window.electronAPI.onPkRequestProcessed((data) => {
-//       this.processedRequests++;
-//       const type = data?.type || '未知';
-//       const url = data?.url || '未知URL';
-//       this.addLog(`处理请求: ${type} - ${url}`, 'info');
-//       this.updateStatus();
-//     });
-//   }
-//
-//   updateStatus() {
-//     const statusElement = document.getElementById('injection-status');
-//     const requestsElement = document.getElementById('processed-requests');
-//
-//     if (statusElement) {
-//       statusElement.textContent = this.injectionStatus;
-//       statusElement.className = 'status-value';
-//
-//       // 根据状态设置颜色
-//       if (this.injectionStatus === '注入成功') {
-//         statusElement.style.color = '#28a745';
-//       } else if (this.injectionStatus === '注入失败') {
-//         statusElement.style.color = '#dc3545';
-//       } else if (this.injectionStatus === '注入中') {
-//         statusElement.style.color = '#ffc107';
-//       } else {
-//         statusElement.style.color = '#007bff';
-//       }
-//     }
-//
-//     if (requestsElement) {
-//       requestsElement.textContent = this.processedRequests;
-//     }
-//   }
-//
-//   addLog(message, type = 'info') {
-//     const logContainer = document.getElementById('pk-injection-log');
-//     if (!logContainer) return;
-//
-//     const timestamp = new Date().toLocaleTimeString();
-//     const logEntry = document.createElement('div');
-//     logEntry.className = `log-entry ${type}`;
-//     logEntry.textContent = `[${timestamp}] ${message}`;
-//
-//     logContainer.appendChild(logEntry);
-//     logContainer.scrollTop = logContainer.scrollHeight;
-//
-//     // 限制日志条数，避免内存占用过多
-//     const entries = logContainer.querySelectorAll('.log-entry');
-//     if (entries.length > 100) {
-//       entries[0].remove();
-//     }
-//   }
-//
-//   handleClearCache() {
-//     if (confirm(`警告：此操作将删除 ${pathJoin(cachePath, 'flipbooks')} 目录下的所有文件！\n\n确定要继续吗？`)) {
-//       this.addLog('正在删除flipbook文件夹...', 'info');
-//
-//       const result = window.electronAPI.deleteFlipbooksFiles();
-//
-//       if (result.error) {
-//         this.addLog(`删除失败: ${result.error}`, 'error');
-//       } else {
-//         this.addLog(`删除成功！已删除 ${result.deletedCount} 个文件/目录`, 'success');
-//       }
-//     }
-//   }
-// }
-
 class UniversalAnswerFeature {
   constructor() {
     this.isProxyRunning = false;
-    this.isCapturing = false;
     this.sortMode = 'file';
     this.lastAnswersData = null;
     this.initEventListeners();
@@ -407,10 +79,6 @@ class UniversalAnswerFeature {
 
     document.getElementById('deleteTempBtn').addEventListener('click', () => {
       this.handleDeleteTemp();
-    });
-
-    document.getElementById('testRulesBtn').addEventListener('click', () => {
-      this.testRulesFunction();
     });
 
     document.getElementById('sortMode').addEventListener('change', (e) => {
@@ -609,14 +277,12 @@ class UniversalAnswerFeature {
     const stopBtn = document.getElementById('stopCaptureBtn');
 
     if (data.capturing) {
-      this.isCapturing = true;
       statusElement.textContent = '监听中';
       statusElement.className = 'status-value running';
       startBtn.disabled = true;
       stopBtn.disabled = false;
       this.addSuccessLog('网络监听已启动');
     } else {
-      this.isCapturing = false;
       statusElement.textContent = '未开始';
       statusElement.className = 'status-value stopped';
       startBtn.disabled = false;
@@ -915,9 +581,9 @@ class UniversalAnswerFeature {
 
   async downloadResponse(uuid) {
     let res = await window.electronAPI.downloadFile(uuid)
-    if (res == 1) {
+    if (res === 1) {
       this.addSuccessLog(`响应体下载成功`);
-    } else if (res == 0) {
+    } else if (res === 0) {
       this.addErrorLog(`响应体下载失败`);
     }
   }
@@ -958,12 +624,6 @@ class UniversalAnswerFeature {
     return result;
   }
 
-  formatFileSize(bytes) {
-    if (bytes < 1024) return bytes + 'B';
-    if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + 'KB';
-    return Math.round(bytes / (1024 * 1024)) + 'MB';
-  }
-
   displayAnswers(data) {
     const container = document.getElementById('answersContainer');
     const processStatus = document.getElementById('processStatus');
@@ -972,7 +632,7 @@ class UniversalAnswerFeature {
       const textarea = document.createElement('textarea');
       textarea.value = text;
       textarea.style.position = 'fixed';
-      textarea.style.opacity = 0;
+      textarea.style.opacity = '0';
       document.body.appendChild(textarea);
       textarea.select();
 
@@ -1133,7 +793,7 @@ class UniversalAnswerFeature {
             answerItem.appendChild(childrenItem);
             answerContent.style.cursor = 'pointer'
             answerContent.addEventListener('click', () => {
-              if (childrenItem.style.display == 'none') {
+              if (childrenItem.style.display === 'none') {
                 childrenItem.style.display = 'block';
                 answerContent.textContent = '点击收起全部回答';
               } else {
@@ -1251,7 +911,7 @@ class UniversalAnswerFeature {
               answerItem.appendChild(childrenItem);
               answerContent.style.cursor = 'pointer'
               answerContent.addEventListener('click', () => {
-                if (childrenItem.style.display == 'none') {
+                if (childrenItem.style.display === 'none') {
                   childrenItem.style.display = 'block';
                   answerContent.textContent = '点击收起全部回答';
                 } else {
@@ -2540,8 +2200,7 @@ function initUpdateFeature() {
 
   window.electronAPI.onUpdateAvailable((data) => {
     document.getElementById('update-version').textContent = data.version;
-    const releaseDate = data.releaseDate ? new Date(data.releaseDate).toLocaleDateString('zh-CN') : '未知';
-    document.getElementById('update-date').textContent = releaseDate;
+    document.getElementById('update-date').textContent = data.releaseDate ? new Date(data.releaseDate).toLocaleDateString('zh-CN') : '未知';
 
     let releaseNotes = data.releaseNotes || '新版本已发布，请更新以获得最新功能。';
     if (typeof releaseNotes !== 'string') {
