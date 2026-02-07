@@ -117,14 +117,6 @@ h1 {
     box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
 }
 
-.content-area {
-    display: none;
-}
-
-.content-area.active {
-    display: block;
-}
-
 .buttons {
     margin: 20px 0;
 }

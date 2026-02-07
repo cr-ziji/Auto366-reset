@@ -19,284 +19,92 @@
     <button class="settings-btn"><img src="setting.svg" alt="设置" class="settings-icon"> 设置</button>
 
     <div class="container">
-        <div id="main-menu">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <img src="icon_black.png" alt="Auto366" style="width: 87px; height: 87px; margin-bottom: 10px;">
-            </div>
-            <h1>Auto366</h1>
-            <h2>天学网自动化工具</h2>
-            <p>请选择要使用的功能：</p>
+<!--        <div id="wordpk-content" class="content-area">-->
+<!--            <button class="back-btn">返回</button>-->
+<!--            <h1>单词PK自动注入</h1>-->
 
-            <div class="feature-grid">
-                <div class="feature-card" data-type="universal-answer">
-                    <h3>万能答案获取</h3>
-                    <p>通过代理拦截网络请求，自动获取各类题目答案</p>
-                </div>
-                <div class="feature-card" data-type="hearing">
-                    <h3>听力测试</h3>
-                    <p>替换提示音频为1秒空白，自动获取听力标准答案</p>
-                </div>
-                <div class="feature-card" data-type="listening">
-                    <h3>听音写词</h3>
-                    <p>自动提取答案，并自动填写答案</p>
-                </div>
-                <div class="feature-card" data-type="wordpk">
-                    <h3>单词PK</h3>
-                    <p>自动完成单词PK练习</p>
-                </div>
-            </div>
+<!--            <div class="tutorial">-->
+<!--                <h2>使用教程</h2>-->
+<!--                <ol>-->
+<!--                    <li><strong>启动代理：</strong>确保代理服务器已启动（在万能答案获取启动）</li>-->
+<!--                    <li><strong>删除缓存：</strong>点击"清理缓存"按钮，清理缓存</li>-->
+<!--                    <li><strong>设置代理：</strong>在天学网客户端中设置代理为 127.0.0.1:5291</li>-->
+<!--                    <li><strong>开始练习：</strong>正常进入单词PK练习，程序会自动注入脚本</li>-->
+<!--                    <li><strong>自动答题：</strong>注入成功后，点击控制面板的"开始PK"按钮后点击天学网的开始PK按钮即可开始自动答题</li>-->
+<!--                    <div class="proxy-notice">-->
+<!--                        <strong>⚠️ 重要提示：</strong>-->
+<!--                            <ul>-->
+<!--                                <li>请保持本地端口127.0.0.1:5291和127.0.0.1:5290不被其他程序占用</li>-->
+<!--                                <li>在启用单词PK自动化前，请确保代理服务器已启动并正确设置</li>-->
+<!--                                <li>在启用单词PK自动化期间，万能答案获取是<strong>不能获取到答案的</strong></li>-->
+<!--                            </ul>-->
+<!--                        </div>-->
+<!--                </ol>-->
+<!--            </div>-->
 
-            <!-- 赞赏码和QQ群区域 -->
-            <div class="appreciation-wrapper">
-                <!-- 赞赏码区域 -->
-                <div class="appreciation-section">
-                    <div class="appreciation-icon" title="如果这个工具对您有帮助，欢迎赞赏支持">
-                        <svg viewBox="0 0 1024 1024" class="heart-icon">
-                            <path
-                                d="M512 896c-12.8 0-25.6-4.8-35.2-14.4L89.6 494.4c-76.8-76.8-76.8-201.6 0-278.4 38.4-38.4 89.6-57.6 140.8-57.6s102.4 19.2 140.8 57.6L512 356.8l140.8-140.8c38.4-38.4 89.6-57.6 140.8-57.6s102.4 19.2 140.8 57.6c76.8 76.8 76.8 201.6 0 278.4L547.2 881.6c-9.6 9.6-22.4 14.4-35.2 14.4z" />
-                        </svg>
-                        <span class="appreciation-text">赞赏</span>
-                        <div class="appreciation-popup">
-                            <div class="appreciation-content">
-                                <h4>感谢您的支持！</h4>
-                                <div class="appreciation-qr-container">
-                                    <img src="prize/Cyril_prize.jpg" alt="Cyril赞赏码" class="appreciation-qr">
-                                    <img src="prize/Cyp_prize.jpg" alt="CYP赞赏码" class="appreciation-qr">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+<!--            <div class="pkstatus-container">-->
+<!--                <div class="pkstatus-item">-->
+<!--                    <span class="pkstatus-label">注入状态：</span>-->
+<!--                    <span id="injection-status" class="pkstatus-value">等待中</span>-->
+<!--                </div>-->
+<!--                <div class="pkstatus-item">-->
+<!--                    <span class="pkstatus-label">处理请求：</span>-->
+<!--                    <span id="processed-requests" class="pkstatus-value">0</span>-->
+<!--                </div>-->
+<!--            </div>-->
 
-                <!-- QQ群区域 -->
-                <div class="appreciation-section">
-                    <div class="appreciation-icon" title="加入QQ群，获取更多帮助与支持">
-                        <svg class="heart-icon" style="fill: #ffffff;" xmlns="http://www.w3.org/2000/svg" width="32"
-                            height="32" viewBox="0 0 32 32">
-                            <path
-                                d="M29.11 26.278c-0.72 0.087-2.804-3.296-2.804-3.296 0 1.959-1.009 4.515-3.191 6.362 1.052 0.325 3.428 1.198 2.863 2.151-0.457 0.772-7.844 0.493-9.977 0.252-2.133 0.24-9.52 0.519-9.977-0.252-0.565-0.953 1.807-1.826 2.861-2.151-2.182-1.846-3.191-4.403-3.191-6.362 0 0-2.083 3.384-2.804 3.296-0.335-0.041-0.776-1.853 0.584-6.231 0.641-2.064 1.375-3.78 2.509-6.611-0.191-7.306 2.828-13.435 10.016-13.435 7.109 0.001 10.197 6.008 10.017 13.435 1.132 2.826 1.869 4.553 2.509 6.611 1.361 4.379 0.92 6.191 0.584 6.231z" />
-                        </svg>
-                        <span class="appreciation-text">QQ群</span>
-                        <div class="appreciation-popup">
-                            <div class="appreciation-content">
-                                <h4>加入QQ群，获取更多帮助与支持</h4>
-                                <h5 style="color: black;">群号：1003718088</h5>
-                                <div class="appreciation-qr-container">
-                                    <img src="prize/qq.jpg" alt="QQ群二维码" class="appreciation-qr">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+<!--            <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">-->
+<!--                <label style="display: block; margin-bottom: 10px; font-weight: bold;">单词PK自动化设置：</label>-->
+<!--                <div style="display: grid; grid-template-columns: 120px 1fr auto; gap: 8px 10px; font-size: 12px; align-items: center;">-->
+<!--                    <span>自定义Zip文件路径：</span>-->
+<!--                    <input id="pkZipPath" type="text" readonly style="width: 100%; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; background: #f5f5f5;">-->
+<!--                    <button id="choosePkZip">选择zip文件</button>-->
+<!--                    <span>MD5（hex）：</span>-->
+<!--                    <input id="pkMd5" type="text" readonly style="width: 100%; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; background: #f5f5f5;">-->
+<!--                    <span></span>-->
+<!--                    <span>MD5（base64）：</span>-->
+<!--                    <input id="pkMd5Base64" type="text" readonly style="width: 100%; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; background: #f5f5f5;">-->
+<!--                    <span></span>-->
+<!--                    <span>文件大小（字节）：</span>-->
+<!--                    <input id="pkSize" type="number" readonly style="width: 100%; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; background: #f5f5f5;">-->
+<!--                    <span></span>-->
+<!--                </div>-->
+<!--                <div style="margin-top: 10px;">-->
+<!--                    <button id="savePkConfig">保存设置</button>-->
+<!--                </div>-->
+<!--                <div style="margin-top: 8px; font-size: 12px; color: #666;">-->
+<!--                    <div>设置会保存在本地，并在每次启动时自动应用。留空即为该版本默认设定。</div>-->
+<!--                </div>-->
+<!--                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">-->
+<!--                    <label for="importPkWordList" style="display: inline-block; margin-right: 10px;">导入词库文件：</label>-->
+<!--                    <input type="file" id="importPkWordList" accept=".txt" style="display: none;">-->
+<!--                    <button id="importPkWordListBtn">选择TXT文件</button>-->
+<!--                    <span id="importPkWordListStatus" style="margin-left: 10px; color: #666; font-size: 12px;"></span>-->
+<!--                </div>-->
+<!--            </div>-->
 
-            <div
-                style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666; font-size: 12px;">
-                <h3>如果程序出现任何错误与异常，请使用 <strong>Ctrl+Shift+Q</strong> 退出当前正在执行的操作</h3>
-                <h4>使用 <strong>Ctrl+F12</strong> 打开开发者工具</h4> <br>
-                <p><strong>免责声明</strong>：本工具仅供学习和研究使用并且<strong>完全免费提供</strong>，使用者需自行承担使用风险，开发者不承担任何法律责任。</p>
-                <p>项目地址：<a href="https://github.com/cyrilguocode/Auto366" target="_blank"
-                        style="color: #007bff;">https://github.com/cyrilguocode/Auto366</a></p>
-                <p>许可证：GNU General Public License v3.0</p>
-            </div>
-        </div>
+<!--            <div class="buttons">-->
+<!--                <button id="togglePkAuto">开启单词PK自动化</button>-->
+<!--                <button id="clearPkCache" class="delete-btn">清理缓存</button>-->
+<!--            </div>-->
 
-        <div id="listening-content" class="content-area">
-            <button class="back-btn">返回</button>
-            <h1>听音写词</h1>
+<!--            <div id="result">-->
+<!--                欢迎使用单词PK自动注入功能！<br>-->
+<!--                此功能会自动在单词PK练习中注入答题脚本<br>-->
+<!--                请确保代理服务器已启动并正确设置<br>-->
+<!--                <div id="pk-injection-log"-->
+<!--                    style="margin-top: 10px; max-height: 200px; overflow-y: auto; background: #f5f5f5; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px;">-->
+<!--                </div>-->
+<!--            </div>-->
 
-            <div class="tutorial">
-                <h2>使用教程</h2>
-                <ol>
-                    <li><strong>输入或手动设置屏幕缩放率：</strong>在下方输入框中输入当前屏幕缩放率（如：100、125、150等或者手动设置为100%，这非常重要）</li>
-                    <li><strong>首次检测：</strong>点击"首次检测"按钮，记录当前资源目录状态</li>
-                    <li><strong>清理文件：</strong>如果有文件请点击"删除已下载"按钮清理资源目录（将保留系统文件夹）</li>
-                    <li><strong>下载练习：</strong>在天学网中找到并下载一个未下载的练习（必须是新下载的）</li>
-                    <li><strong>再次检测：</strong>点击"再次检测"按钮，检测新下载的练习并提取答案</li>
-                    <li><strong>定位坐标：</strong>点击"定位填充数据"按钮，在练习页面中：
-                        <ul>
-                            <li>🔴 拖拽到答案输入框位置</li>
-                            <li>🔵 拖拽到"下一页"按钮位置</li>
-                            <li>点击右下角确定</li>
-                        </ul>
-                    </li>
-                    <li><strong>开始填充：</strong>点击"开始填充数据"按钮，自动填写答案并翻页</li>
-                    <li><strong>清理文件：</strong>完成后可点击"删除已下载"按钮清理资源目录（将保留系统文件夹）</li>
-                </ol>
-            </div>
-
-            <div class="scale-input-container">
-                <label for="scaleInput">屏幕缩放率（%）：</label>
-                <div class="scale-input-wrapper">
-                    <input type="number" id="scaleInput" placeholder="请输入当前屏幕缩放率，如：100" class="scale-input" value="0">
-                    <button id="getScale" class="clear-memory-btn">获取当前</button>
-                </div>
-                <div class="scale-help-text" id="scaleHelpText">程序会自动读取屏幕缩放率，点击"获取当前"可重新获取系统缩放率</div>
-            </div>
-
-            <div class="buttons">
-                <button id="firstCheck">首次检测</button>
-                <button id="secondCheck" disabled>再次检测</button>
-                <button id="locationBtn">定位填充数据</button>
-                <button id="startBtn" disabled>开始填充数据</button>
-                <button id="deleteBtn" class="delete-btn">删除已下载</button>
-            </div>
-            <div id="locationData">暂无数据</div>
-            <div id="result">
-                <strong>欢迎使用听音写词功能！</strong><br>
-                请按照上方教程步骤操作<br>
-                请在上方输入框中输入你的屏幕缩放率，否则自动选择可能会出现偏差!
-                <hr>
-                <strong>第一步：</strong>输入屏幕缩放率，然后点击"首次检测"按钮开始
-            </div>
-
-            <div
-                style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666; font-size: 12px;">
-                <p><strong>免责声明</strong>：本工具仅供学习和研究使用并且<strong>完全免费提供</strong>，使用者需自行承担使用风险，开发者不承担任何法律责任。</p>
-                <p>项目地址：<a href="https://github.com/cyrilguocode/Auto366" target="_blank"
-                        style="color: #007bff;">https://github.com/cyrilguocode/Auto366</a></p>
-                <p>许可证：GNU General Public License v3.0</p>
-            </div>
-        </div>
-
-        <div id="wordpk-content" class="content-area">
-            <button class="back-btn">返回</button>
-            <h1>单词PK自动注入</h1>
-
-            <div class="tutorial">
-                <h2>使用教程</h2>
-                <ol>
-                    <li><strong>启动代理：</strong>确保代理服务器已启动（在万能答案获取启动）</li>
-                    <li><strong>删除缓存：</strong>点击"清理缓存"按钮，清理缓存</li>
-                    <li><strong>设置代理：</strong>在天学网客户端中设置代理为 127.0.0.1:5291</li>
-                    <li><strong>开始练习：</strong>正常进入单词PK练习，程序会自动注入脚本</li>
-                    <li><strong>自动答题：</strong>注入成功后，点击控制面板的"开始PK"按钮后点击天学网的开始PK按钮即可开始自动答题</li>
-                    <div class="proxy-notice">
-                        <strong>⚠️ 重要提示：</strong>
-                            <ul>
-                                <li>请保持本地端口127.0.0.1:5291和127.0.0.1:5290不被其他程序占用</li>
-                                <li>在启用单词PK自动化前，请确保代理服务器已启动并正确设置</li>
-                                <li>在启用单词PK自动化期间，万能答案获取是<strong>不能获取到答案的</strong></li>
-                            </ul>
-                        </div>
-                </ol>
-            </div>
-
-            <div class="pkstatus-container">
-                <div class="pkstatus-item">
-                    <span class="pkstatus-label">注入状态：</span>
-                    <span id="injection-status" class="pkstatus-value">等待中</span>
-                </div>
-                <div class="pkstatus-item">
-                    <span class="pkstatus-label">处理请求：</span>
-                    <span id="processed-requests" class="pkstatus-value">0</span>
-                </div>
-            </div>
-
-            <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                <label style="display: block; margin-bottom: 10px; font-weight: bold;">单词PK自动化设置：</label>
-                <div style="display: grid; grid-template-columns: 120px 1fr auto; gap: 8px 10px; font-size: 12px; align-items: center;">
-                    <span>自定义Zip文件路径：</span>
-                    <input id="pkZipPath" type="text" readonly style="width: 100%; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; background: #f5f5f5;">
-                    <button id="choosePkZip">选择zip文件</button>
-                    <span>MD5（hex）：</span>
-                    <input id="pkMd5" type="text" readonly style="width: 100%; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; background: #f5f5f5;">
-                    <span></span>
-                    <span>MD5（base64）：</span>
-                    <input id="pkMd5Base64" type="text" readonly style="width: 100%; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; background: #f5f5f5;">
-                    <span></span>
-                    <span>文件大小（字节）：</span>
-                    <input id="pkSize" type="number" readonly style="width: 100%; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; background: #f5f5f5;">
-                    <span></span>
-                </div>
-                <div style="margin-top: 10px;">
-                    <button id="savePkConfig">保存设置</button>
-                </div>
-                <div style="margin-top: 8px; font-size: 12px; color: #666;">
-                    <div>设置会保存在本地，并在每次启动时自动应用。留空即为该版本默认设定。</div>
-                </div>
-                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
-                    <label for="importPkWordList" style="display: inline-block; margin-right: 10px;">导入词库文件：</label>
-                    <input type="file" id="importPkWordList" accept=".txt" style="display: none;">
-                    <button id="importPkWordListBtn">选择TXT文件</button>
-                    <span id="importPkWordListStatus" style="margin-left: 10px; color: #666; font-size: 12px;"></span>
-                </div>
-            </div>
-
-            <div class="buttons">
-                <button id="togglePkAuto">开启单词PK自动化</button>
-                <button id="clearPkCache" class="delete-btn">清理缓存</button>
-            </div>
-
-            <div id="result">
-                欢迎使用单词PK自动注入功能！<br>
-                此功能会自动在单词PK练习中注入答题脚本<br>
-                请确保代理服务器已启动并正确设置<br>
-                <div id="pk-injection-log"
-                    style="margin-top: 10px; max-height: 200px; overflow-y: auto; background: #f5f5f5; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px;">
-                </div>
-            </div>
-
-            <div
-                style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666; font-size: 12px;">
-                <p><strong>免责声明</strong>：本工具仅供学习和研究使用并且<strong>完全免费提供</strong>，使用者需自行承担使用风险，开发者不承担任何法律责任。</p>
-                <p>项目地址：<a href="https://github.com/cyrilguocode/Auto366" target="_blank"
-                        style="color: #007bff;">https://github.com/cyrilguocode/Auto366</a></p>
-                <p>许可证：GNU General Public License v3.0</p>
-            </div>
-        </div>
-
-        <div id="hearing-content" class="content-area">
-            <button class="back-btn">返回</button>
-            <h1>听力测试</h1>
-
-            <div class="tutorial">
-                <h2>使用教程</h2>
-                <ol>
-                    <li><strong>自动寻找路径：</strong>点击"自动寻找"按钮，系统会自动扫描flipbooks目录下的文件夹</li>
-                    <li><strong>输入路径：</strong>如果只有一个文件夹会自动填写，多个文件夹请手动选择输入</li>
-                    <li><strong>替换音频：</strong>点击"替换音频"按钮，将指定文件夹中的所有提示音频文件替换为1秒空白音频</li>
-                    <li><strong>还原音频：</strong>完成后可点击"还原音频"按钮，恢复原始音频文件</li>
-                    <li><strong>获取答案：</strong>点击"获取答案"按钮，系统将扫描并提取听力答案</li>
-                    <li><strong>查看结果：</strong>P2听后回答部分显示音频标答文件，P3听后转述部分显示解析的JSON答案</li>
-                    <li><strong>删除文件：</strong>点击"删除文件"按钮，删除flipbooks目录中的所有文件</li>
-                    <li><strong>注意事项：</strong>替换前会自动备份原文件，还原时会删除备份文件<br>听力标答音频排序可能为<strong>乱序</strong>，请根据实际题目判断</li>
-                </ol>
-            </div>
-
-            <div class="path-input-container">
-                <label for="answerFolderPath">文件夹路径：</label>
-                <div class="path-input-wrapper">
-                    <input type="text" id="answerFolderPath" placeholder="请输入文件夹路径" class="path-input">
-                    <button id="findAnswerPathBtn" class="find-path-btn">自动寻找</button>
-                </div>
-            </div>
-
-            <div class="buttons">
-                <button id="replaceBtn">替换音频</button>
-                <button id="restoreBtn">还原音频</button>
-                <button id="getAnswerBtn">获取答案</button>
-                <button id="deleteFlipbooksBtn" class="delete-btn">删除文件</button>
-            </div>
-            <div id="answerResult">
-                <strong>欢迎使用听力测试功能！</strong><br>
-                此功能用于：<br>
-                1.获取听后回答和转述的标准答案<br>
-                2.替换提示音频为1秒空白<br>
-                请按照上方教程步骤操作<br>
-                输入文件夹路径后点击获取答案按钮<br>
-                <strong>注意：听力标答音频可能为乱序，请根据实际题目判断</strong>
-            </div>
-
-            <div
-                style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666; font-size: 12px;">
-                <p><strong>免责声明</strong>：本工具仅供学习和研究使用并且<strong>完全免费提供</strong>，使用者需自行承担使用风险，开发者不承担任何法律责任。</p>
-                <p>项目地址：<a href="https://github.com/cyrilguocode/Auto366" target="_blank"
-                        style="color: #007bff;">https://github.com/cyrilguocode/Auto366</a></p>
-                <p>许可证：GNU General Public License v3.0</p>
-            </div>
-        </div>
-
+<!--            <div-->
+<!--                style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666; font-size: 12px;">-->
+<!--                <p><strong>免责声明</strong>：本工具仅供学习和研究使用并且<strong>完全免费提供</strong>，使用者需自行承担使用风险，开发者不承担任何法律责任。</p>-->
+<!--                <p>项目地址：<a href="https://github.com/cyrilguocode/Auto366" target="_blank"-->
+<!--                        style="color: #007bff;">https://github.com/cyrilguocode/Auto366</a></p>-->
+<!--                <p>许可证：GNU General Public License v3.0</p>-->
+<!--            </div>-->
+<!--        </div>-->
         <div id="universal-answer-content" class="content-area">
             <button class="back-btn">返回</button>
             <h1>万能答案获取</h1>
