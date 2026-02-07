@@ -12,6 +12,7 @@ const CertificateManager = require('./certificate-manager')
 const appPath = app.isPackaged ? process.resourcesPath : __dirname;
 const tempDir = path.join(appPath, 'temp');
 const ansDir = path.join(appPath, 'answers');
+const fileDir = path.join(appPath, 'file');
 const rulesDir = path.join(app.getPath('userData'), 'response-rules');
 
 class AnswerProxy {
@@ -24,22 +25,9 @@ class AnswerProxy {
     this.responseRules = [];
     this.certManager = new CertificateManager();
     this.pendingPkRequests = new Map(); // 存储待处理的PK请求
-    this.pkConfig = {
-      enabled: false,
-      zipPath: path.join(__dirname, 'auto-pk', 'auto-pk.zip'),
-      md5: '',
-      md5Base64: '',
-      size: 0
-    };
     this.wordPkBucketData = null; // 单词PK词库数据
     this.bucketServer = null; // 本地词库HTTP服务器
 
-    // 启动时自动根据默认zip计算MD5/size
-    try {
-      this.refreshPkZipInfo();
-    } catch (e) {
-      console.error('初始化PK默认zip信息失败:', e);
-    }
     this.loadResponseRules();
   }
 
@@ -48,56 +36,25 @@ class AnswerProxy {
     this.mainWindow = window;
   }
 
-  setPkConfig(config) {
-    try {
-      if (!this.pkConfig) this.pkConfig = {};
-      if (typeof config.enabled === 'boolean') this.pkConfig.enabled = config.enabled;
-
-      if (typeof config.zipPath === 'string' && config.zipPath.trim()) {
-        const zipPath = config.zipPath.trim();
-        if (!fs.existsSync(zipPath)) {
-          throw new Error('zip文件不存在: ' + zipPath);
-        }
-        const buffer = fs.readFileSync(zipPath);
-        const md5 = crypto.createHash('md5').update(buffer).digest('hex');
-        const md5Base64 = Buffer.from(md5, 'hex').toString('base64');
-        const size = buffer.length;
-        this.pkConfig.zipPath = zipPath;
-        this.pkConfig.md5 = md5;
-        this.pkConfig.md5Base64 = md5Base64;
-        this.pkConfig.size = size;
+  findLocalFile(url) {
+    const filepath = path.join(fileDir, url.split('/').pop()+'.zip');
+    console.log(filepath)
+    if (!fs.existsSync(filepath)) {
+      console.log('未找到对应的本地文件，不更改请求')
+      return {
+        enabled: false
       }
-
-      console.log('PK配置已更新:', this.pkConfig);
-      return true;
-    } catch (e) {
-      console.error('更新PK配置失败:', e);
-      return false;
     }
-  }
-
-  getPkConfig() {
-    return this.pkConfig || {};
-  }
-
-  refreshPkZipInfo() {
-    if (!this.pkConfig || !this.pkConfig.zipPath) return;
-    try {
-      const zipPath = this.pkConfig.zipPath;
-      if (!fs.existsSync(zipPath)) {
-        console.warn('默认PK zip不存在:', zipPath);
-        return;
-      }
-      const buffer = fs.readFileSync(zipPath);
-      const md5 = crypto.createHash('md5').update(buffer).digest('hex');
-      const md5Base64 = Buffer.from(md5, 'hex').toString('base64');
-      const size = buffer.length;
-      this.pkConfig.md5 = md5;
-      this.pkConfig.md5Base64 = md5Base64;
-      this.pkConfig.size = size;
-      console.log('默认PK zip信息已自动计算:', this.pkConfig);
-    } catch (e) {
-      console.error('自动计算默认PK zip信息失败:', e);
+    const buffer = fs.readFileSync(filepath);
+    const md5 = crypto.createHash('md5').update(buffer).digest('hex');
+    const md5Base64 = Buffer.from(md5, 'hex').toString('base64');
+    const size = buffer.length;
+    return {
+      enabled: true,
+      zipPath: filepath,
+      md5: md5,
+      md5Base64: md5Base64,
+      size: size
     }
   }
 
@@ -105,7 +62,7 @@ class AnswerProxy {
   safeIpcSend(channel, data) {
     try {
       if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-        console.log(`发送IPC消息 [${channel}]:`, data);
+        // console.log(`发送IPC消息 [${channel}]:`, data);
         this.mainWindow.webContents.send(channel, data);
       } else {
         console.warn(`无法发送IPC消息 [${channel}]: 主窗口不可用`);
@@ -481,7 +438,7 @@ class AnswerProxy {
                 text: buffer.toString('utf8')
               });
             } else {
-              console.log('Gzip解压成功');
+              // console.log('Gzip解压成功');
               resolve({
                 buffer: result,
                 text: result.toString('utf8')
@@ -611,7 +568,7 @@ class AnswerProxy {
           const fullUrl = `${protocol}://${requestOptions.hostname || requestOptions.host}${requestOptions.path}`;
 
           // 记录请求信息
-          console.log(`拦截请求: ${clientReq.method} ${fullUrl}`);
+          // console.log(`拦截请求: ${clientReq.method} ${fullUrl}`);
 
           // 应用请求修改规则
           const modifiedRequest = this.applyRequestRules(fullUrl, clientReq.method, requestOptions, clientReq.headers);
@@ -636,17 +593,15 @@ class AnswerProxy {
             }
           }
 
-          const pkCfg = this.pkConfig || {};
-
-          if (pkCfg.enabled && this.isPkFileInfoRequest(fullUrl)) {
-            console.log('检测到单词PK文件信息请求，暂停处理...', fullUrl);
-            this.handlePkFileInfoRequest(fullUrl, clientReq, clientRes, requestOptions, ssl);
+          if (this.isFileInfoRequest(fullUrl)) {
+            console.log('检测到文件信息请求，暂停处理...', fullUrl);
+            this.handleFileInfoRequest(fullUrl, clientReq, clientRes, requestOptions, ssl);
             return;
           }
 
-          if (pkCfg.enabled && this.isPkFileRequest(fullUrl)) {
-            console.log('检测到单词PK文件请求，暂停处理...', fullUrl);
-            this.handlePkFileRequest(fullUrl, clientReq, clientRes, requestOptions, ssl);
+          if (this.isFileRequest(fullUrl)) {
+            console.log('检测到文件请求，暂停处理...', fullUrl);
+            this.handleFileRequest(fullUrl, clientReq, clientRes, requestOptions, ssl);
             return;
           }
 
@@ -695,7 +650,7 @@ class AnswerProxy {
           const contentLengthIsZero = proxyRes.headers['content-length'] == 0;
           const isCompressed = Boolean(contentEncoding) && !isFile;
 
-          console.log(`请求: ${fullUrl}, 内容类型: ${contentType}, 是否压缩: ${isCompressed}`);
+          // console.log(`请求: ${fullUrl}, 内容类型: ${contentType}, 是否压缩: ${isCompressed}`);
 
           // 应用响应头修改规则
           const headerResult = this.applyResponseHeaderRules(fullUrl, req.method, proxyRes.headers);
@@ -726,7 +681,7 @@ class AnswerProxy {
                 let responseBody = '';
                 let decompressedBuffer = responseBuffer;
                 if (isCompressed) {
-                  console.log(`开始解压缩响应 (${contentEncoding})`);
+                  // console.log(`开始解压缩响应 (${contentEncoding})`);
                   const decompressed = await this.decompressResponse(responseBuffer, contentEncoding);
                   responseBody = decompressed.text;
                   decompressedBuffer = decompressed.buffer;
@@ -2001,22 +1956,21 @@ class AnswerProxy {
     return this.trafficCache.get(uuid)
   }
 
-  // 获取规则类型列表
-  // 检查是否是PK文件信息请求
-  isPkFileInfoRequest(url) {
+  // 检查是否是文件信息请求
+  isFileInfoRequest(url) {
     return url.includes('https://fs.up366.cn/fileinfo/');
   }
 
-  // 检查是否是PK文件请求
-  isPkFileRequest(url) {
-    return url.includes('https://cdn-ws.up366.cn/cn/files/feishu/');
+  // 检查是否是文件请求
+  isFileRequest(url) {
+    return url.includes('https://fs-v2.up366.cn/download/');
   }
 
-  // 处理PK文件信息请求
-  handlePkFileInfoRequest(url, clientReq, clientRes, requestOptions, ssl) {
-    console.log(`检测到PK文件信息请求: ${url}`);
+  // 处理文件信息请求
+  handleFileInfoRequest(url, clientReq, clientRes, requestOptions, ssl) {
+    console.log(`检测到文件信息请求: ${url}`);
 
-    const config = this.pkConfig || {};
+    const config = this.findLocalFile(url);
     if (!config.enabled) {
       const protocol = ssl ? https : http;
       try {
@@ -2152,11 +2106,11 @@ class AnswerProxy {
     }
   }
 
-  // 处理PK文件请求
-  handlePkFileRequest(url, clientReq, clientRes, requestOptions, ssl) {
-    console.log(`检测到PK文件请求: ${url}`);
+  // 处理文件请求
+  handleFileRequest(url, clientReq, clientRes, requestOptions, ssl) {
+    console.log(`检测到文件请求: ${url}`);
 
-    const config = this.pkConfig || {};
+    const config = this.findLocalFile(url);
     if (!config.enabled) {
       const protocol = ssl ? https : http;
       try {
@@ -2186,19 +2140,18 @@ class AnswerProxy {
       return;
     }
 
-    this.handlePkFileRequestSimple(url, clientReq, clientRes, requestOptions, ssl);
+    this.handleFileRequestSimple(config, url, clientReq, clientRes, requestOptions, ssl);
   }
 
-  // 处理PK文件请求
-  async handlePkFileRequestSimple(url, clientReq, clientRes, requestOptions, ssl) {
+  // 处理文件请求
+  async handleFileRequestSimple(config, url, clientReq, clientRes, requestOptions, ssl) {
     try {
-      console.log('使用zip替换PK文件响应');
+      console.log('使用zip替换文件响应');
 
-      const config = this.pkConfig || {};
-      const zipPath = config.zipPath || path.join(__dirname, 'auto-pk', 'auto-pk.zip');
-      const md5 = config.md5 || '1ddb71ec870ca3a6fd22d6e6c8ac18f8';
-      const size = config.size || 25329247;
-      const md5Base64 = config.md5Base64 || Buffer.from(md5, 'hex').toString('base64');
+      const zipPath = config.zipPath;
+      const md5 = config.md5;
+      const size = config.size;
+      const md5Base64 = config.md5Base64;
 
       if (!fs.existsSync(zipPath)) {
         throw new Error(`zip文件不存在: ${zipPath}`);
@@ -2249,7 +2202,7 @@ class AnswerProxy {
   }
 
   // 错误时释放请求
-  releaseRequestWithError(request, error) {
+  handleFileInfoError(request, error) {
     try {
       if (!request.clientRes.headersSent) {
         request.clientRes.writeHead(500, { 'Content-Type': 'text/plain' });
