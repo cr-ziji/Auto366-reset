@@ -6,7 +6,6 @@ const os = require('os');
 class CertificateManager {
   constructor() {
     this.certPath = path.join(os.homedir(), 'node-mitmproxy', 'node-mitmproxy.ca.crt');
-    this.isImported = false;
   }
 
   async importCertificate() {
@@ -22,7 +21,6 @@ class CertificateManager {
 
       if (isAlreadyImported) {
         console.log('证书已经导入到受信任的根证书颁发机构');
-        this.isImported = true;
         return { success: true, message: '证书已经存在于受信任的根证书颁发机构', status: 'exists' };
       }
 
@@ -31,7 +29,6 @@ class CertificateManager {
       const result = await this.addCertificateToStore();
       
       if (result.success) {
-        this.isImported = true;
         console.log('证书导入成功');
         result.status = 'success';
       } else {
@@ -179,19 +176,10 @@ class CertificateManager {
           console.error('证书删除命令执行失败:', error);
           resolve({ success: false, error: error.message });
         } else {
-          this.isImported = false;
           resolve({ success: true, message: '证书删除成功' });
         }
       });
     });
-  }
-
-  getCertificatePath() {
-    return this.certPath;
-  }
-
-  isCertificateImported() {
-    return this.isImported;
   }
 
   async trySimplePowerShellImport() {
@@ -223,7 +211,6 @@ class CertificateManager {
       const result = await this.addCertificateToStore();
       
       if (result.success) {
-        this.isImported = true;
         console.log('证书强制导入成功');
         result.status = 'success';
       } else {
