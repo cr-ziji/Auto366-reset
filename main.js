@@ -6,12 +6,8 @@ const { createClient } = require('@supabase/supabase-js')
 
 // 引入抓包代理类
 const AnswerProxy = require('./answer-proxy');
-const { async } = require('node-stream-zip');
 
 let mainWindow
-let ans
-let flag = 0;
-let globalScale = 100
 let updateInfo = null
 
 process.on('uncaughtException', (error) => {
