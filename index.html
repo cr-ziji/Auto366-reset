@@ -45,8 +45,7 @@
                 <div class="buttons">
                     <button id="startProxyBtn">启动代理服务器</button>
                     <button id="stopProxyBtn" disabled>停止代理服务器</button>
-                    <button id="responseRulesBtn">更改响应体规则</button>
-                    <button id="appendImplantBtn">添加注入压缩包</button>
+                    <button id="responseRulesBtn">管理注入规则</button>
                     <button id="deleteTempBtn" class="delete-btn">删除缓存</button>
                 </div>
 
@@ -163,11 +162,11 @@
         </div>
     </div>
 
-    <!-- 响应体更改规则弹窗 -->
+    <!-- 注入规则弹窗 -->
     <div id="response-rules-modal" class="modal">
         <div class="modal-content response-rules-modal">
             <div class="modal-header">
-                <h2>响应体更改规则</h2>
+                <h2>注入规则</h2>
                 <span class="close" id="close-response-rules">&times;</span>
             </div>
             <div class="rules-container">
@@ -202,122 +201,167 @@
                 <div class="form-group">
                     <label for="rule-type">规则类型:</label>
                     <select id="rule-type">
-                        <option value="response">响应体修改</option>
-                        <option value="request">请求修改</option>
-                        <option value="response-headers">响应头修改</option>
+                        <option value="content-change">网络请求/响应修改</option>
+                        <option value="zip-implant">更改zip内容注入页面代码</option>
+                        <option value="answer-upload">答案上传至本地服务器</option>
                     </select>
-                    <small>选择要修改的内容类型</small>
+                    <small>选择规则类型</small>
                 </div>
-                <div class="form-group">
-                    <label for="rule-url-pattern">URL匹配模式:</label>
-                    <input type="text" id="rule-url-pattern" placeholder="支持正则表达式，如: .*\.json$" required>
-                    <small>支持正则表达式，留空则匹配所有请求</small>
-                </div>
-                <div class="form-group">
-                    <label for="rule-method">请求方法:</label>
-                    <select id="rule-method">
-                        <option value="">所有方法</option>
-                        <option value="GET">GET</option>
-                        <option value="POST">POST</option>
-                        <option value="PUT">PUT</option>
-                        <option value="DELETE">DELETE</option>
-                    </select>
-                </div>
-                <div class="form-group" id="content-type-group">
-                    <label for="rule-content-type">内容类型:</label>
-                    <input type="text" id="rule-content-type" placeholder="如: application/json">
-                    <small>留空则匹配所有内容类型（仅对响应体规则有效）</small>
-                </div>
-                <div class="form-group">
-                    <label for="rule-action">操作类型:</label>
-                    <select id="rule-action">
-                        <option value="replace">替换响应体</option>
-                        <option value="modify">修改响应体</option>
-                        <option value="inject">注入内容</option>
-                    </select>
-                </div>
-
-                <!-- 响应体修改相关字段 -->
-                <div class="form-group" id="replace-content-group">
-                    <label for="rule-replace-content">替换内容:</label>
-                    <div class="replace-options">
-                        <label>
-                            <input type="radio" name="replace-type" value="text" checked> 文本内容
-                        </label>
-                        <label>
-                            <input type="radio" name="replace-type" value="file"> 从文件替换
-                        </label>
-                    </div>
-                    <textarea id="rule-replace-content" rows="8" placeholder="请输入要替换的完整响应体内容"></textarea>
-                    <div id="file-replace-group" style="display: none;">
-                        <label for="rule-file-path">文件路径:</label>
-                        <div class="file-input-group">
-                            <input type="text" id="rule-file-path" placeholder="选择要替换的文件路径" readonly>
-                            <button type="button" id="browse-replace-file">浏览</button>
-                        </div>
-                        <small class="help-text">支持任何类型的文件，包括二进制文件（图片、视频、压缩包等）</small>
-                    </div>
-                </div>
-                <div class="form-group" id="modify-rules-group" style="display: none;">
-                    <label>修改规则:</label>
-                    <div class="modify-rules-container">
-                        <div class="modify-rule-item">
-                            <input type="text" placeholder="查找内容(支持正则)" class="find-input">
-                            <input type="text" placeholder="替换为" class="replace-input">
-                            <button type="button" class="remove-modify-rule">删除</button>
-                        </div>
-                    </div>
-                    <button type="button" id="add-modify-rule">添加修改规则</button>
-                </div>
-                <div class="form-group" id="inject-content-group" style="display: none;">
-                    <label for="rule-inject-content">注入内容:</label>
-                    <textarea id="rule-inject-content" rows="4" placeholder="要注入的内容"></textarea>
-                    <div class="inject-position">
-                        <label>注入位置:</label>
-                        <select id="rule-inject-position">
-                            <option value="start">开头</option>
-                            <option value="end">结尾</option>
-                            <option value="before">指定内容前</option>
-                            <option value="after">指定内容后</option>
+                <div id="content-change-group" style="display: none">
+                    <div class="form-group">
+                        <label for="change-type">修改类型:</label>
+                        <select id="change-type">
+                            <option value="request-headers">请求头修改</option>
+                            <option value="request-body">请求体修改</option>
+                            <option value="response-headers">响应头修改</option>
+                            <option value="response-body">响应体修改</option>
                         </select>
-                        <input type="text" id="rule-inject-target" placeholder="目标内容(当选择指定位置时)" style="display: none;">
+                        <small>选择要修改的内容类型</small>
                     </div>
-                </div>
+                    <div class="form-group">
+                        <label for="rule-url-pattern">URL匹配模式:</label>
+                        <input type="text" id="rule-url-pattern" placeholder="支持正则表达式，如: .*\.json$" required>
+                        <small>支持正则表达式，留空则匹配所有请求</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="rule-method">请求方法:</label>
+                        <select id="rule-method">
+                            <option value="">所有方法</option>
+                            <option value="GET">GET</option>
+                            <option value="POST">POST</option>
+                            <option value="PUT">PUT</option>
+                            <option value="DELETE">DELETE</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="content-type-group">
+                        <label for="rule-content-type">内容类型:</label>
+                        <input type="text" id="rule-content-type" placeholder="如: application/json">
+                        <small>留空则匹配所有内容类型（仅对响应体规则有效）</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="rule-action">操作类型:</label>
+                        <select id="rule-action">
+                            <option value="replace">替换响应体</option>
+                            <option value="modify">修改响应体</option>
+                            <option value="inject">注入内容</option>
+                        </select>
+                    </div>
 
-                <!-- 请求修改相关字段 -->
-                <div class="form-group" id="request-headers-group" style="display: none;">
-                    <label>请求头修改:</label>
-                    <div class="headers-container">
-                        <div class="header-item">
-                            <input type="text" placeholder="请求头名称" class="header-name-input">
-                            <input type="text" placeholder="请求头值" class="header-value-input">
-                            <button type="button" class="remove-header">删除</button>
+                    <!-- 响应体修改相关字段 -->
+                    <div class="form-group" id="replace-content-group">
+                        <label for="rule-replace-content">替换内容:</label>
+                        <div class="replace-options">
+                            <label>
+                                <input type="radio" name="replace-type" value="text" checked> 文本内容
+                            </label>
+                            <label>
+                                <input type="radio" name="replace-type" value="file"> 从文件替换
+                            </label>
+                        </div>
+                        <textarea id="rule-replace-content" rows="8" placeholder="请输入要替换的完整响应体内容"></textarea>
+                        <div id="file-replace-group" style="display: none;">
+                            <label for="rule-file-path">文件路径:</label>
+                            <div class="file-input-group">
+                                <input type="text" id="rule-file-path" placeholder="选择要替换的文件路径" readonly>
+                                <button type="button" id="browse-replace-file">浏览</button>
+                            </div>
+                            <small class="help-text">支持任何类型的文件，包括二进制文件（图片、视频、压缩包等）</small>
                         </div>
                     </div>
-                    <button type="button" id="add-request-header">添加请求头</button>
-                </div>
-                <div class="form-group" id="new-url-group" style="display: none;">
-                    <label for="rule-new-url">重定向URL:</label>
-                    <input type="text" id="rule-new-url" placeholder="请输入新的URL">
-                    <small>请求将被重定向到此URL</small>
-                </div>
-
-                <!-- 响应头修改相关字段 -->
-                <div class="form-group" id="response-headers-group" style="display: none;">
-                    <label>响应头修改:</label>
-                    <div class="headers-container">
-                        <div class="header-item">
-                            <input type="text" placeholder="响应头名称" class="header-name-input">
-                            <input type="text" placeholder="响应头值" class="header-value-input">
-                            <button type="button" class="remove-header">删除</button>
+                    <div class="form-group" id="modify-rules-group" style="display: none;">
+                        <label>修改规则:</label>
+                        <div class="modify-rules-container">
+                            <div class="modify-rule-item">
+                                <input type="text" placeholder="查找内容(支持正则)" class="find-input">
+                                <input type="text" placeholder="替换为" class="replace-input">
+                                <button type="button" class="remove-modify-rule">删除</button>
+                            </div>
+                        </div>
+                        <button type="button" id="add-modify-rule">添加修改规则</button>
+                    </div>
+                    <div class="form-group" id="inject-content-group" style="display: none;">
+                        <label for="rule-inject-content">注入内容:</label>
+                        <textarea id="rule-inject-content" rows="4" placeholder="要注入的内容"></textarea>
+                        <div class="inject-position">
+                            <label>注入位置:</label>
+                            <select id="rule-inject-position">
+                                <option value="start">开头</option>
+                                <option value="end">结尾</option>
+                                <option value="before">指定内容前</option>
+                                <option value="after">指定内容后</option>
+                            </select>
+                            <input type="text" id="rule-inject-target" placeholder="目标内容(当选择指定位置时)" style="display: none;">
                         </div>
                     </div>
-                    <button type="button" id="add-response-header">添加响应头</button>
+
+                    <!-- 请求修改相关字段 -->
+                    <div class="form-group" id="request-headers-group" style="display: none;">
+                        <label>请求头修改:</label>
+                        <div class="headers-container">
+                            <div class="header-item">
+                                <input type="text" placeholder="请求头名称" class="header-name-input">
+                                <input type="text" placeholder="请求头值" class="header-value-input">
+                                <button type="button" class="remove-header">删除</button>
+                            </div>
+                        </div>
+                        <button type="button" id="add-request-header">添加请求头</button>
+                    </div>
+                    <div class="form-group" id="new-url-group" style="display: none;">
+                        <label for="rule-new-url">重定向URL:</label>
+                        <input type="text" id="rule-new-url" placeholder="请输入新的URL">
+                        <small>请求将被重定向到此URL</small>
+                    </div>
+
+                    <!-- 响应头修改相关字段 -->
+                    <div class="form-group" id="response-headers-group" style="display: none;">
+                        <label>响应头修改:</label>
+                        <div class="headers-container">
+                            <div class="header-item">
+                                <input type="text" placeholder="响应头名称" class="header-name-input">
+                                <input type="text" placeholder="响应头值" class="header-value-input">
+                                <button type="button" class="remove-header">删除</button>
+                            </div>
+                        </div>
+                        <button type="button" id="add-response-header">添加响应头</button>
+                    </div>
+                    <div class="form-group" id="remove-headers-group" style="display: none;">
+                        <label for="rule-remove-headers">删除响应头:</label>
+                        <input type="text" id="rule-remove-headers" placeholder="要删除的响应头名称，多个用逗号分隔">
+                        <small>例如: Content-Security-Policy, X-Frame-Options</small>
+                    </div>
                 </div>
-                <div class="form-group" id="remove-headers-group" style="display: none;">
-                    <label for="rule-remove-headers">删除响应头:</label>
-                    <input type="text" id="rule-remove-headers" placeholder="要删除的响应头名称，多个用逗号分隔">
-                    <small>例如: Content-Security-Policy, X-Frame-Options</small>
+                <div id="zip-implant-group" style="display: none">
+                    <div class="form-group">
+                        <label for="rule-zip-implant">植入ZIP:</label>
+                        <input type="text" id="rule-zip-implant" placeholder="请输入ZIP文件路径">
+                        <button id="browseFileBtn">浏览</button>
+                        <small>将此ZIP文件的内容植入响应体</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="rule-url-zip">植入请求:</label>
+                        <input type="text" id="rule-url-zip" placeholder="请输入ZIP植入请求">
+                        <small>请输入获取zip的请求URL的最后一个/后面的内容（注：请输入下载zip前的第一个302请求，而不是下载zip请求本身！！！）</small>
+                    </div>
+                </div>
+                <div id="answer-upload-group" style="display: none">
+                    <div class="form-group">
+                        <label for="rule-url-upload">上传URL:</label>
+                        <input type="text" id="rule-url-upload" placeholder="请输入上传URL">
+                        <small>要上传答案到本地服务器的请求url</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="server-locate">服务器位置:</label>
+                        <input type="text" id="server-locate" placeholder="请输入服务器位置">
+                        <small>上传后答案在服务器的什么位置（如/answer）</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="upload-type">上传类型:</label>
+                        <select id="upload-type">
+                            <option value="original">响应体</option>
+                            <option value="resolved">尝试解析答案后的json</option>
+                        </select>
+                        <small>上传什么类型</small>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -328,7 +372,7 @@
                 </div>
                 <div class="form-actions">
                     <button type="button" id="save-rule-btn" class="save-btn">保存规则</button>
-                    <button type="button" id="test-rule-btn" class="test-btn">测试规则</button>
+<!--                    <button type="button" id="test-rule-btn" class="test-btn">测试规则</button>-->
                     <button type="button" id="cancel-rule-btn" class="cancel-btn">取消</button>
                 </div>
             </div>

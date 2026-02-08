@@ -77,7 +77,7 @@ class UniversalAnswerFeature {
       this.stopProxy();
     });
 
-    document.getElementById('appendImplantBtn').addEventListener('click', () => {
+    document.getElementById('browseFileBtn').addEventListener('click', () => {
       this.appendImplant();
     });
 
@@ -184,13 +184,14 @@ class UniversalAnswerFeature {
         this.addErrorLog('未选择文件');
         return;
       }
-      this.addInfoLog(`正在导入压缩包: ${filePath}`);
-      const result = await window.electronAPI.importImplantZip(filePath);
-      if (result.success) {
-        this.addSuccessLog(result.message);
-      } else {
-        this.addErrorLog(`导入失败: ${result.error}`);
-      }
+      document.getElementById('rule-zip-implant').value = filePath;
+      // this.addInfoLog(`正在导入压缩包: ${filePath}`);
+      // const result = await window.electronAPI.importImplantZip(filePath);
+      // if (result.success) {
+      //   this.addSuccessLog(result.message);
+      // } else {
+      //   this.addErrorLog(`导入失败: ${result.error}`);
+      // }
     });
   }
 
@@ -1541,13 +1542,13 @@ async function openRuleEditor(rule = null) {
 // 填充规则表单
 async function fillRuleForm(rule) {
   document.getElementById('rule-name').value = rule.name || '';
-  document.getElementById('rule-type').value = rule.type || 'response';
+  document.getElementById('rule-type').value = rule.type || 'content-change';
   document.getElementById('rule-url-pattern').value = rule.urlPattern || '';
   document.getElementById('rule-method').value = rule.method || '';
   document.getElementById('rule-enabled').checked = rule.enabled !== false;
 
   // 处理规则类型变化
-  await handleRuleTypeChange(rule.type || 'response');
+  await handleRuleTypeChange(rule.type || 'content-change');
 
   // 内容类型只对响应体规则有效
   if (rule.type === 'response') {
@@ -1616,7 +1617,7 @@ async function fillRuleForm(rule) {
 // 清空规则表单
 async function clearRuleForm() {
   document.getElementById('rule-name').value = '';
-  document.getElementById('rule-type').value = 'response';
+  document.getElementById('rule-type').value = 'content-change';
   document.getElementById('rule-url-pattern').value = '';
   document.getElementById('rule-method').value = '';
   document.getElementById('rule-content-type').value = '';
@@ -1652,7 +1653,7 @@ async function clearRuleForm() {
   }
 
   // 处理默认规则类型
-  await handleRuleTypeChange('response');
+  await handleRuleTypeChange('content-change');
 
   document.getElementById('rule-edit-modal').dataset.ruleId = '';
 }
@@ -1724,14 +1725,10 @@ function fillResponseHeaders(headers) {
 
 // 处理规则类型变化
 async function handleRuleTypeChange(ruleType) {
-  const contentTypeGroup = document.getElementById('content-type-group');
-
-  // 内容类型字段只对响应体规则有效
-  if (ruleType === 'response') {
-    contentTypeGroup.style.display = 'block';
-  } else {
-    contentTypeGroup.style.display = 'none';
-  }
+  document.getElementById('content-change-group').style.display = 'none';
+  document.getElementById('zip-implant-group').style.display = 'none';
+  document.getElementById('answer-upload-group').style.display = 'none';
+  document.getElementById(ruleType+'-group').style.display = 'block';
 }
 
 // 添加请求头

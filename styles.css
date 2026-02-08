@@ -1150,6 +1150,7 @@ button:disabled {
     border-radius: 6px;
     font-size: 14px;
     transition: border-color 0.2s;
+    box-sizing: border-box;
 }
 
 .form-group input:focus,
@@ -1158,6 +1159,10 @@ button:disabled {
     outline: none;
     border-color: #4299e1;
     box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+}
+
+.form-group input[type="checkbox"] {
+    margin: 0;
 }
 
 .form-group small {
