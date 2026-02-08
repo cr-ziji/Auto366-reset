@@ -172,6 +172,7 @@
             <div class="rules-container">
                 <div class="rules-toolbar">
                     <button id="add-rule-btn" class="add-rule-btn">新建规则</button>
+                    <button id="add-group-btn" class="add-group-btn">新建分组</button>
                     <button id="import-rules-btn" class="import-btn">导入规则</button>
                     <button id="export-rules-btn" class="export-btn">导出规则</button>
                     <div class="rules-status">
@@ -197,6 +198,13 @@
                 <div class="form-group">
                     <label for="rule-name">规则名称:</label>
                     <input type="text" id="rule-name" placeholder="请输入规则名称" required>
+                </div>
+                <div class="form-group">
+                    <label for="rule-group">所属分组:</label>
+                    <select id="rule-group">
+                        <option value="">未分组</option>
+                    </select>
+                    <small>选择规则所属分组</small>
                 </div>
                 <div class="form-group">
                     <label for="rule-type">规则类型:</label>
@@ -452,6 +460,40 @@
                 <div class="update-actions">
                     <button id="update-install-later" class="browse-btn update-btn-cancel">稍后安装</button>
                     <button id="update-install-now" class="save-btn">立即安装并重启</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自定义弹窗组件 -->
+    <div id="custom-prompt-modal" class="modal">
+        <div class="modal-content prompt-modal-content">
+            <div class="modal-header">
+                <h2 id="prompt-title">提示</h2>
+                <span class="close" id="close-prompt">&times;</span>
+            </div>
+            <div class="prompt-body">
+                <p id="prompt-message"></p>
+                <input type="text" id="prompt-input" class="prompt-input">
+                <div class="prompt-actions">
+                    <button id="prompt-cancel" class="cancel-btn">取消</button>
+                    <button id="prompt-confirm" class="save-btn">确定</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-confirm-modal" class="modal">
+        <div class="modal-content confirm-modal-content">
+            <div class="modal-header">
+                <h2 id="confirm-title">确认</h2>
+                <span class="close" id="close-confirm">&times;</span>
+            </div>
+            <div class="confirm-body">
+                <p id="confirm-message"></p>
+                <div class="confirm-actions">
+                    <button id="confirm-cancel" class="cancel-btn">取消</button>
+                    <button id="confirm-ok" class="save-btn">确定</button>
                 </div>
             </div>
         </div>

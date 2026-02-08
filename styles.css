@@ -1012,6 +1012,16 @@ button:disabled {
     background: #3182ce;
 }
 
+.add-group-btn {
+    background: #48bb78;
+    color: white;
+    border-color: #48bb78;
+}
+
+.add-group-btn:hover {
+    background: #38a169;
+}
+
 .import-btn:hover,
 .export-btn:hover {
     background: #f7fafc;
@@ -1057,8 +1067,145 @@ button:disabled {
     border-bottom: none;
 }
 
+/* 分组相关样式 */
+.rules-group {
+    margin-bottom: 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f7fafc;
+}
+
+.rules-group-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    background: #edf2f7;
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.rules-group-header:hover {
+    background: #e2e8f0;
+}
+
+.rules-group-title {
+    font-weight: 600;
+    color: #2d3748;
+    flex: 1;
+}
+
+.rules-group-toggle {
+    margin-right: 10px;
+    transition: transform 0.2s;
+}
+
+.rules-group-toggle.collapsed {
+    transform: rotate(-90deg);
+}
+
+.rules-group-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.rules-group-actions button {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.rules-group-content {
+    padding: 10px 0;
+    min-height: 20px;
+    background: white;
+    border-radius: 0 0 8px 8px;
+}
+
+.rules-group-content.collapsed {
+    display: none;
+}
+
+/* 拖拽相关样式 */
+.rule-item.dragging {
+    opacity: 0.5;
+    background: #e2e8f0;
+}
+
+.rules-group.drag-over {
+    border: 2px dashed #4299e1;
+    background: #ebf8ff;
+}
+
+/* 无分组区域 */
+.ungrouped-rules {
+    margin-top: 10px;
+    padding: 10px;
+    border: 2px dashed #cbd5e0;
+    border-radius: 8px;
+    background: #f7fafc;
+}
+
+.ungrouped-rules.drag-over {
+    border-color: #4299e1;
+    background: #ebf8ff;
+}
+
+.ungrouped-rules-header {
+    font-weight: 600;
+    color: #718096;
+    margin-bottom: 10px;
+}
+
 .rule-checkbox {
     margin-right: 12px;
+}
+
+/* 自定义弹窗样式 */
+.prompt-modal-content,
+.confirm-modal-content {
+    max-width: 400px;
+    width: 90%;
+}
+
+.prompt-body,
+.confirm-body {
+    padding: 20px;
+}
+
+.prompt-body p,
+.confirm-body p {
+    margin: 0 0 15px 0;
+    color: #4a5568;
+    font-size: 14px;
+}
+
+.prompt-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #cbd5e0;
+    border-radius: 6px;
+    font-size: 14px;
+    box-sizing: border-box;
+    margin-bottom: 15px;
+}
+
+.prompt-input:focus {
+    outline: none;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+}
+
+.prompt-actions,
+.confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.prompt-actions button,
+.confirm-actions button {
+    min-width: 80px;
 }
 
 .rule-info {

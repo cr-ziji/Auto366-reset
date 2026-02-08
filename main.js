@@ -226,6 +226,10 @@ ipcMain.handle('save-response-rule', (event, rule) => {
   return answerProxy.saveRule(rule);
 });
 
+ipcMain.handle('save-response-rules', (event, rules) => {
+  return answerProxy.saveResponseRules(rules);
+});
+
 ipcMain.handle('delete-response-rule', (event, ruleId) => {
   return answerProxy.deleteRule(ruleId);
 });

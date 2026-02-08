@@ -118,12 +118,22 @@ class AnswerProxy {
   }
 
   // 保存响应体更改规则
-  saveResponseRules() {
+  saveResponseRules(rules = null) {
     try {
       fs.ensureDirSync(rulesDir);
       const rulesFile = path.join(rulesDir, 'rules.json');
-      fs.writeFileSync(rulesFile, JSON.stringify(this.responseRules, null, 2), 'utf-8');
-      console.log(`已保存 ${this.responseRules.length} 条响应体更改规则`);
+
+      // 如果传入了规则数组，则使用传入的规则；否则使用当前规则
+      const rulesToSave = rules !== null ? rules : this.responseRules;
+
+      fs.writeFileSync(rulesFile, JSON.stringify(rulesToSave, null, 2), 'utf-8');
+      console.log(`已保存 ${rulesToSave.length} 条响应体更改规则`);
+
+      // 如果传入了规则数组，则更新当前规则
+      if (rules !== null) {
+        this.responseRules = rules;
+      }
+
       return true;
     } catch (error) {
       console.error('保存响应体更改规则失败:', error);

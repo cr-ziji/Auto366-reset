@@ -1210,6 +1210,11 @@ function initResponseRulesFeature() {
     openRuleEditor();
   });
 
+  // 新建分组
+  document.getElementById('add-group-btn').addEventListener('click', () => {
+    createGroup();
+  });
+
   // 导入规则
   document.getElementById('import-rules-btn').addEventListener('click', async () => {
     try {
@@ -1404,8 +1409,59 @@ function displayResponseRules(rules) {
     return;
   }
 
-  rulesList.innerHTML = rules.map(rule => `
-        <div class="rule-item" data-rule-id="${rule.id}">
+  // 获取所有分组
+  const groups = rules.filter(rule => rule.isGroup);
+  // 获取非分组规则
+  const nonGroupRules = rules.filter(rule => !rule.isGroup);
+
+  let html = '';
+
+  // 渲染分组
+  groups.forEach(group => {
+    const groupRules = nonGroupRules.filter(rule => rule.groupId === group.id);
+    const enabledCount = groupRules.filter(rule => rule.enabled).length;
+
+    html += `
+      <div class="rules-group" data-group-id="${group.id}">
+        <div class="rules-group-header" onclick="toggleGroup('${group.id}')">
+          <span class="rules-group-toggle">▼</span>
+          <span class="rules-group-title">${escapeHtml(group.name)}</span>
+          <div class="rules-group-actions">
+            <button class="rule-action-btn" onclick="event.stopPropagation(); toggleGroupRules('${group.id}', ${group.enabled})">
+              ${group.enabled ? '禁用' : '启用'}
+            </button>
+            <button class="rule-action-btn edit" onclick="event.stopPropagation(); editGroup('${group.id}')">编辑</button>
+            <button class="rule-action-btn delete" onclick="event.stopPropagation(); deleteGroup('${group.id}')">删除</button>
+          </div>
+        </div>
+        <div class="rules-group-content" data-group-content="${group.id}">
+          ${groupRules.length > 0 ? groupRules.map(rule => createRuleItemHTML(rule)).join('') : '<div class="no-rules">暂无规则</div>'}
+        </div>
+      </div>
+    `;
+  });
+
+  // 渲染未分组的规则
+  const ungroupedRules = nonGroupRules.filter(rule => !rule.groupId);
+  if (ungroupedRules.length > 0) {
+    html += `
+      <div class="ungrouped-rules" data-ungrouped="true">
+        <div class="ungrouped-rules-header">未分组规则</div>
+        ${ungroupedRules.map(rule => createRuleItemHTML(rule)).join('')}
+      </div>
+    `;
+  }
+
+  rulesList.innerHTML = html;
+
+  // 初始化拖拽功能
+  initializeDragAndDrop();
+}
+
+// 创建规则项HTML
+function createRuleItemHTML(rule) {
+  return `
+    <div class="rule-item" data-rule-id="${rule.id}" draggable="true">
             <input type="checkbox" class="rule-checkbox" ${rule.enabled ? 'checked' : ''} 
                    onchange="toggleRule('${rule.id}', this.checked)">
             <div class="rule-info">
@@ -1439,7 +1495,7 @@ function displayResponseRules(rules) {
                 <button class="rule-action-btn delete" onclick="deleteRule('${rule.id}')">删除</button>
             </div>
         </div>
-    `).join('');
+  `;
 }
 
 // 获取规则类型文本
@@ -1507,7 +1563,8 @@ async function editRule(ruleId) {
 
 // 删除规则
 async function deleteRule(ruleId) {
-  if (confirm('确定要删除这条规则吗？')) {
+  const confirmed = await showConfirm('确认删除', '确定要删除这条规则吗？');
+  if (confirmed) {
     try {
       const success = await window.electronAPI.deleteResponseRule(ruleId);
       if (success) {
@@ -1523,10 +1580,233 @@ async function deleteRule(ruleId) {
   }
 }
 
+// 分组管理函数
+async function createGroup() {
+  const groupName = await showPrompt('创建分组', '请输入分组名称:');
+  if (groupName && groupName.trim()) {
+    try {
+      const newGroup = {
+        id: Date.now().toString(),
+        name: groupName.trim(),
+        isGroup: true,
+        enabled: true,
+        createdAt: new Date().toISOString()
+      };
+
+      const rules = await window.electronAPI.getResponseRules();
+      rules.push(newGroup);
+      await window.electronAPI.saveResponseRules(rules);
+
+      loadResponseRules();
+      showToast('分组创建成功', 'success');
+    } catch (error) {
+      console.error('创建分组失败:', error);
+      showToast('创建分组失败', 'error');
+    }
+  }
+}
+
+async function editGroup(groupId) {
+  try {
+    const rules = await window.electronAPI.getResponseRules();
+    const group = rules.find(r => r.id === groupId);
+
+    if (group) {
+      const newName = await showPrompt('编辑分组', '请输入新的分组名称:', group.name);
+      if (newName && newName.trim()) {
+        group.name = newName.trim();
+        await window.electronAPI.saveResponseRules(rules);
+        loadResponseRules();
+        showToast('分组名称已更新', 'success');
+      }
+    }
+  } catch (error) {
+    console.error('编辑分组失败:', error);
+    showToast('编辑分组失败', 'error');
+  }
+}
+
+async function deleteGroup(groupId) {
+  const confirmed = await showConfirm('确认删除', '确定要删除此分组吗？分组内的规则将变为未分组状态。');
+  if (confirmed) {
+    try {
+      const rules = await window.electronAPI.getResponseRules();
+
+      // 删除分组
+      const filteredRules = rules.filter(r => r.id !== groupId);
+
+      // 将该分组内的规则设置为未分组
+      filteredRules.forEach(rule => {
+        if (rule.groupId === groupId) {
+          rule.groupId = null;
+        }
+      });
+
+      await window.electronAPI.saveResponseRules(filteredRules);
+      loadResponseRules();
+      showToast('分组已删除', 'success');
+    } catch (error) {
+      console.error('删除分组失败:', error);
+      showToast('删除分组失败', 'error');
+    }
+  }
+}
+
+async function toggleGroup(groupId, enabled) {
+  try {
+    const rules = await window.electronAPI.getResponseRules();
+    const group = rules.find(r => r.id === groupId);
+
+    if (group) {
+      group.enabled = !group.enabled;
+
+      // 切换分组内所有规则的启用状态
+      rules.forEach(rule => {
+        if (rule.groupId === groupId) {
+          rule.enabled = group.enabled;
+        }
+      });
+
+      await window.electronAPI.saveResponseRules(rules);
+      loadResponseRules();
+      showToast(`分组已${group.enabled ? '启用' : '禁用'}`, 'success');
+    }
+  } catch (error) {
+    console.error('切换分组状态失败:', error);
+    showToast('切换分组状态失败', 'error');
+  }
+}
+
+function toggleGroup(groupId) {
+  const groupContent = document.querySelector(`[data-group-content="${groupId}"]`);
+  const toggleIcon = document.querySelector(`[data-group-id="${groupId}"] .rules-group-toggle`);
+
+  if (groupContent && toggleIcon) {
+    groupContent.classList.toggle('collapsed');
+    toggleIcon.classList.toggle('collapsed');
+  }
+}
+
+async function toggleGroupRules(groupId, enabled) {
+  try {
+    const rules = await window.electronAPI.getResponseRules();
+
+    // 切换分组内所有规则的启用状态
+    rules.forEach(rule => {
+      if (rule.groupId === groupId) {
+        rule.enabled = !enabled;
+      }
+    });
+
+    // 更新分组状态
+    const group = rules.find(r => r.id === groupId);
+    if (group) {
+      group.enabled = !enabled;
+    }
+
+    await window.electronAPI.saveResponseRules(rules);
+    loadResponseRules();
+    showToast(`分组内规则已${!enabled ? '启用' : '禁用'}`, 'success');
+  } catch (error) {
+    console.error('切换分组规则状态失败:', error);
+    showToast('切换分组规则状态失败', 'error');
+  }
+}
+
+// 拖拽功能初始化
+function initializeDragAndDrop() {
+  const ruleItems = document.querySelectorAll('.rule-item');
+  const groups = document.querySelectorAll('.rules-group');
+  const ungroupedArea = document.querySelector('.ungrouped-rules');
+
+  ruleItems.forEach(item => {
+    item.addEventListener('dragstart', handleDragStart);
+    item.addEventListener('dragend', handleDragEnd);
+  });
+
+  groups.forEach(group => {
+    const groupContent = group.querySelector('.rules-group-content');
+    groupContent.addEventListener('dragover', handleDragOver);
+    groupContent.addEventListener('dragleave', handleDragLeave);
+    groupContent.addEventListener('drop', handleDrop);
+  });
+
+  if (ungroupedArea) {
+    ungroupedArea.addEventListener('dragover', handleDragOver);
+    ungroupedArea.addEventListener('dragleave', handleDragLeave);
+    ungroupedArea.addEventListener('drop', handleDrop);
+  }
+}
+
+let draggedRuleId = null;
+
+function handleDragStart(e) {
+  draggedRuleId = this.getAttribute('data-rule-id');
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragEnd(e) {
+  this.classList.remove('dragging');
+  document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  this.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+  this.classList.remove('drag-over');
+}
+
+async function handleDrop(e) {
+  e.preventDefault();
+  this.classList.remove('drag-over');
+
+  if (!draggedRuleId) return;
+
+  try {
+    const rules = await window.electronAPI.getResponseRules();
+    const rule = rules.find(r => r.id === draggedRuleId);
+
+    if (!rule || rule.isGroup) return;
+
+    // 确定目标分组ID
+    let targetGroupId = null;
+
+    if (this.classList.contains('rules-group-content')) {
+      const groupElement = this.closest('.rules-group');
+      if (groupElement) {
+        targetGroupId = groupElement.getAttribute('data-group-id');
+      }
+    } else if (this.classList.contains('ungrouped-rules')) {
+      targetGroupId = null;
+    }
+
+    // 更新规则的分组ID
+    if (rule.groupId !== targetGroupId) {
+      rule.groupId = targetGroupId;
+      await window.electronAPI.saveResponseRules(rules);
+      loadResponseRules();
+      showToast('规则已移动', 'success');
+    }
+  } catch (error) {
+    console.error('移动规则失败:', error);
+    showToast('移动规则失败', 'error');
+  }
+
+  draggedRuleId = null;
+}
+
 // 打开规则编辑器
 async function openRuleEditor(rule = null) {
   const modal = document.getElementById('rule-edit-modal');
   const title = document.getElementById('rule-edit-title');
+
+  // 加载分组选项
+  await loadGroupOptions();
 
   if (rule) {
     title.textContent = '编辑规则';
@@ -1539,9 +1819,31 @@ async function openRuleEditor(rule = null) {
   modal.style.display = 'flex';
 }
 
+// 加载分组选项
+async function loadGroupOptions() {
+  try {
+    const rules = await window.electronAPI.getResponseRules();
+    const groups = rules.filter(rule => rule.isGroup);
+
+    const groupSelect = document.getElementById('rule-group');
+    // 保留第一个选项（未分组）
+    groupSelect.innerHTML = '<option value="">未分组</option>';
+
+    groups.forEach(group => {
+      const option = document.createElement('option');
+      option.value = group.id;
+      option.textContent = group.name;
+      groupSelect.appendChild(option);
+    });
+  } catch (error) {
+    console.error('加载分组选项失败:', error);
+  }
+}
+
 // 填充规则表单
 async function fillRuleForm(rule) {
   document.getElementById('rule-name').value = rule.name || '';
+  document.getElementById('rule-group').value = rule.groupId || '';
   document.getElementById('rule-type').value = rule.type || 'content-change';
   document.getElementById('rule-url-pattern').value = rule.urlPattern || '';
   document.getElementById('rule-method').value = rule.method || '';
@@ -1617,6 +1919,7 @@ async function fillRuleForm(rule) {
 // 清空规则表单
 async function clearRuleForm() {
   document.getElementById('rule-name').value = '';
+  document.getElementById('rule-group').value = '';
   document.getElementById('rule-type').value = 'content-change';
   document.getElementById('rule-url-pattern').value = '';
   document.getElementById('rule-method').value = '';
@@ -1893,6 +2196,7 @@ function collectRuleData() {
   const ruleType = document.getElementById('rule-type').value;
   const rule = {
     name: document.getElementById('rule-name').value.trim(),
+    groupId: document.getElementById('rule-group').value || null,
     type: ruleType,
     urlPattern: document.getElementById('rule-url-pattern').value.trim(),
     method: document.getElementById('rule-method').value,
@@ -2281,3 +2585,133 @@ function handleReplaceTypeChange() {
     fileGroup.style.display = 'none';
   }
 }
+
+// 自定义弹窗函数
+let promptResolve = null;
+let confirmResolve = null;
+
+// 初始化自定义弹窗
+function initCustomModals() {
+  // 初始化提示弹窗
+  const promptModal = document.getElementById('custom-prompt-modal');
+  const promptTitle = document.getElementById('prompt-title');
+  const promptMessage = document.getElementById('prompt-message');
+  const promptInput = document.getElementById('prompt-input');
+  const promptConfirm = document.getElementById('prompt-confirm');
+  const promptCancel = document.getElementById('prompt-cancel');
+  const closePrompt = document.getElementById('close-prompt');
+
+  promptConfirm.addEventListener('click', () => {
+    if (promptResolve) {
+      promptResolve(promptInput.value);
+      promptResolve = null;
+    }
+    promptModal.style.display = 'none';
+  });
+
+  promptCancel.addEventListener('click', () => {
+    if (promptResolve) {
+      promptResolve(null);
+      promptResolve = null;
+    }
+    promptModal.style.display = 'none';
+  });
+
+  closePrompt.addEventListener('click', () => {
+    if (promptResolve) {
+      promptResolve(null);
+      promptResolve = null;
+    }
+    promptModal.style.display = 'none';
+  });
+
+  // 初始化确认弹窗
+  const confirmModal = document.getElementById('custom-confirm-modal');
+  const confirmTitle = document.getElementById('confirm-title');
+  const confirmMessage = document.getElementById('confirm-message');
+  const confirmOk = document.getElementById('confirm-ok');
+  const confirmCancel = document.getElementById('confirm-cancel');
+  const closeConfirm = document.getElementById('close-confirm');
+
+  confirmOk.addEventListener('click', () => {
+    if (confirmResolve) {
+      confirmResolve(true);
+      confirmResolve = null;
+    }
+    confirmModal.style.display = 'none';
+  });
+
+  confirmCancel.addEventListener('click', () => {
+    if (confirmResolve) {
+      confirmResolve(false);
+      confirmResolve = null;
+    }
+    confirmModal.style.display = 'none';
+  });
+
+  closeConfirm.addEventListener('click', () => {
+    if (confirmResolve) {
+      confirmResolve(false);
+      confirmResolve = null;
+    }
+    confirmModal.style.display = 'none';
+  });
+
+  // 点击弹窗外部关闭
+  window.addEventListener('click', (event) => {
+    if (event.target === promptModal) {
+      if (promptResolve) {
+        promptResolve(null);
+        promptResolve = null;
+      }
+      promptModal.style.display = 'none';
+    }
+    if (event.target === confirmModal) {
+      if (confirmResolve) {
+        confirmResolve(false);
+        confirmResolve = null;
+      }
+      confirmModal.style.display = 'none';
+    }
+  });
+}
+
+// 显示提示弹窗
+function showPrompt(title, message, defaultValue = '') {
+  return new Promise((resolve) => {
+    promptResolve = resolve;
+
+    const promptModal = document.getElementById('custom-prompt-modal');
+    const promptTitle = document.getElementById('prompt-title');
+    const promptMessage = document.getElementById('prompt-message');
+    const promptInput = document.getElementById('prompt-input');
+
+    promptTitle.textContent = title;
+    promptMessage.textContent = message;
+    promptInput.value = defaultValue;
+
+    promptModal.style.display = 'flex';
+    promptInput.focus();
+  });
+}
+
+// 显示确认弹窗
+function showConfirm(title, message) {
+  return new Promise((resolve) => {
+    confirmResolve = resolve;
+
+    const confirmModal = document.getElementById('custom-confirm-modal');
+    const confirmTitle = document.getElementById('confirm-title');
+    const confirmMessage = document.getElementById('confirm-message');
+
+    confirmTitle.textContent = title;
+    confirmMessage.textContent = message;
+
+    confirmModal.style.display = 'flex';
+  });
+}
+
+// 页面加载完成后初始化自定义弹窗
+document.addEventListener('DOMContentLoaded', () => {
+  initCustomModals();
+});

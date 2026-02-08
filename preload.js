@@ -54,6 +54,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 响应体更改规则相关API
   getResponseRules: () => ipcRenderer.invoke('get-response-rules'),
   saveResponseRule: (rule) => ipcRenderer.invoke('save-response-rule', rule),
+  saveResponseRules: (rules) => ipcRenderer.invoke('save-response-rules', rules),
   deleteResponseRule: (ruleId) => ipcRenderer.invoke('delete-response-rule', ruleId),
   toggleResponseRule: (ruleId, enabled) => ipcRenderer.invoke('toggle-response-rule', ruleId, enabled),
   exportResponseRules: () => ipcRenderer.invoke('export-response-rules'),
