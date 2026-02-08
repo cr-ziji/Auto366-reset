@@ -1725,34 +1725,12 @@ function fillResponseHeaders(headers) {
 // 处理规则类型变化
 async function handleRuleTypeChange(ruleType) {
   const contentTypeGroup = document.getElementById('content-type-group');
-  const actionSelect = document.getElementById('rule-action');
 
   // 内容类型字段只对响应体规则有效
   if (ruleType === 'response') {
     contentTypeGroup.style.display = 'block';
   } else {
     contentTypeGroup.style.display = 'none';
-  }
-
-  // 根据规则类型更新操作选项
-  try {
-    const actionTypes = await window.electronAPI.getActionTypes(ruleType);
-    actionSelect.innerHTML = '';
-
-    actionTypes.forEach(actionType => {
-      const option = document.createElement('option');
-      option.value = actionType.value;
-      option.textContent = actionType.label;
-      option.title = actionType.description;
-      actionSelect.appendChild(option);
-    });
-
-    // 触发操作类型变化处理
-    if (actionTypes.length > 0) {
-      handleActionChange(actionTypes[0].value, ruleType);
-    }
-  } catch (error) {
-    console.error('获取操作类型失败:', error);
   }
 }
 

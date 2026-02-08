@@ -294,15 +294,6 @@ ipcMain.handle('import-response-rules', async () => {
   return { success: false, error: '用户取消操作' };
 });
 
-// 获取规则类型和动作类型
-ipcMain.handle('get-rule-types', () => {
-  return answerProxy.getRuleTypes();
-});
-
-ipcMain.handle('get-action-types', (event, ruleType) => {
-  return answerProxy.getActionTypes(ruleType);
-});
-
 ipcMain.handle('clear-cache', async () => {
   try {
     await answerProxy.clearCache()
