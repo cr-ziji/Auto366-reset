@@ -569,7 +569,7 @@ class AnswerProxy {
     }
 
     // 创建MITM代理实例
-    mitmproxy.createProxy({
+    this.proxyAgent = mitmproxy.createProxy({
       port: 5291,
       ssl: {
         rejectUnauthorized: false
