@@ -990,6 +990,7 @@ button:disabled {
 }
 
 .add-rule-btn,
+.add-group-btn,
 .import-btn,
 .export-btn {
     padding: 8px 16px;
