@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, screen, globalShortcut, shell, dialog } = require('electron')
+const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron')
 const path = require('path')
 const { autoUpdater } = require('electron-updater')
 const fs = require('fs-extra')
@@ -199,17 +199,6 @@ ipcMain.on('open-file-choosing', async () => {
   if (!result.canceled) mainWindow.webContents.send('choose-file', result.filePaths[0])
 })
 
-ipcMain.on('open-pk-zip-choosing', async () => {
-  const result = await dialog.showOpenDialog({
-    properties: ['openFile'],
-    filters: [
-      { name: 'Zip Files', extensions: ['zip'] },
-      { name: 'All Files', extensions: ['*'] }
-    ]
-  });
-  if (!result.canceled) mainWindow.webContents.send('choose-pk-zip', result.filePaths[0]);
-})
-
 ipcMain.on('open-implant-zip-choosing', async () => {
   const result = await dialog.showOpenDialog({
     properties: ['openFile'],
@@ -312,31 +301,6 @@ ipcMain.handle('get-rule-types', () => {
 
 ipcMain.handle('get-action-types', (event, ruleType) => {
   return answerProxy.getActionTypes(ruleType);
-});
-
-ipcMain.handle('clear-pk-cache', async () => {
-  try {
-    // 清理PK相关缓存
-    answerProxy.pendingPkRequests.clear();
-    return { success: true, message: 'PK缓存已清理' };
-  } catch (error) {
-    console.error('清理PK缓存失败:', error);
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle('import-pk-word-list', async (event, content) => {
-  try {
-    if (!content || typeof content !== 'string') {
-      return { success: false, error: '内容不能为空' };
-    }
-    
-    answerProxy.setWordPkBucketData(content);
-    return { success: true, message: '词库导入成功' };
-  } catch (error) {
-    console.error('导入词库失败:', error);
-    return { success: false, error: error.message };
-  }
 });
 
 ipcMain.handle('clear-cache', async () => {

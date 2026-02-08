@@ -213,7 +213,6 @@ class UniversalAnswerFeature {
         stopBtn.disabled = true;
       } else {
         this.addInfoLog('代理服务器启动成功，自动开始监听网络请求...');
-        window.electronAPI.startCapturing();
       }
     }, 5000);
   }
