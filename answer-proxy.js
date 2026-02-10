@@ -3,7 +3,7 @@ const http = require('http')
 const https = require('https')
 const fs = require('fs-extra')
 const StreamZip = require('node-stream-zip')
-const mitmproxy = require('node-mitmproxy')
+const mitmproxy = require('node-mitmproxy-pro')
 const zlib = require('zlib')
 const path = require('path')
 const { app } = require('electron')
@@ -26,6 +26,7 @@ class AnswerProxy {
     this.pendingPkRequests = new Map(); // 存储待处理的PK请求
     this.wordPkBucketData = null; // 单词PK词库数据
     this.bucketServer = null; // 本地词库HTTP服务器
+    this.requestInfos = {}
 
     this.loadResponseRules();
   }
@@ -587,7 +588,7 @@ class AnswerProxy {
       sslConnectInterceptor: (req, cltSocket, head) => {
         return true;
       },
-      requestInterceptor: (requestOptions, clientReq, clientRes, ssl, next) => {
+      requestInterceptor: (id, requestOptions, clientReq, clientRes, proxyReq, ssl, next) => {
         try {
           // 构建请求URL
           const protocol = ssl ? "https" : "http";
@@ -630,6 +631,21 @@ class AnswerProxy {
             this.handleFileRequest(fullUrl, clientReq, clientRes, requestOptions, ssl);
             return;
           }
+          this.requestInfos[id] = {}
+          this.requestInfos[id].method = clientReq.method
+          this.requestInfos[id].url = fullUrl
+          this.requestInfos[id].host = clientReq.headers.host
+          this.requestInfos[id].timestamp = new Date().toISOString()
+          this.requestInfos[id].isHttps = ssl
+          this.requestInfos[id].requestHeaders = clientReq.headers
+          let requestBody = [];
+          clientReq.on('data', chunk => {
+            requestBody.push(chunk)
+          });
+          clientReq.on('end', () => {
+            this.requestInfos[id].requestBody = Buffer.concat(requestBody).toString()
+          });
+          clientReq.pipe(proxyReq);
 
           // 发送请求拦截日志
           this.safeIpcSend('request-intercepted', {
@@ -647,26 +663,10 @@ class AnswerProxy {
 
         next();
       },
-      responseInterceptor: (req, res, proxyReq, proxyRes, ssl, next) => {
+      responseInterceptor: (id, res, proxyRes, ssl, next) => {
         try {
           // 构建请求信息
-          const protocol = ssl ? "https" : "http";
-          let urlPath = req.url;
-          let fullUrl;
-          if (urlPath.startsWith(protocol + "://")) {
-            fullUrl = urlPath;
-          } else {
-            fullUrl = protocol + "://" + (req.headers.host || "") + urlPath;
-          }
-
-          const requestInfo = {
-            method: req.method,
-            url: fullUrl,
-            host: req.headers.host,
-            timestamp: new Date().toISOString(),
-            isHttps: ssl,
-            requestHeaders: req.headers
-          };
+          let fullUrl = this.requestInfos[id].url;
 
           // 检查内容类型和编码
           const contentType = proxyRes.headers['content-type'] || '';
@@ -679,7 +679,7 @@ class AnswerProxy {
           // console.log(`请求: ${fullUrl}, 内容类型: ${contentType}, 是否压缩: ${isCompressed}`);
 
           // 应用响应头修改规则
-          const headerResult = this.applyResponseHeaderRules(fullUrl, req.method, proxyRes.headers);
+          const headerResult = this.applyResponseHeaderRules(fullUrl, this.requestInfos[id].method, proxyRes.headers);
 
           // 统一处理所有响应，收集完整数据后再发送
           const chunks = [];
@@ -719,7 +719,7 @@ class AnswerProxy {
                 // 应用响应体更改规则
                 const ruleResult = this.applyResponseRules(
                   fullUrl,
-                  req.method,
+                  this.requestInfos[id].method,
                   contentType,
                   responseBody,
                   decompressedBuffer
@@ -772,7 +772,7 @@ class AnswerProxy {
                   }
 
                   // 记录修改信息
-                  requestInfo.modifiedByRules = ruleResult.appliedRules;
+                  this.requestInfos[id].modifiedByRules = ruleResult.appliedRules;
                 }
               }
 
@@ -796,7 +796,7 @@ class AnswerProxy {
                   }
                 });
                 console.log(`响应头已被规则修改: ${headerResult.appliedRules.join(', ')}`);
-                requestInfo.headersModifiedByRules = headerResult.appliedRules;
+                this.requestInfos[id].headersModifiedByRules = headerResult.appliedRules;
               }
 
               // 发送响应头和响应体
@@ -805,32 +805,31 @@ class AnswerProxy {
               res.end();
 
               // 发送完整的请求响应信息
-              requestInfo.statusCode = proxyRes.statusCode;
-              requestInfo.statusMessage = proxyRes.statusMessage;
-              requestInfo.responseHeaders = proxyRes.headers;
-              requestInfo.contentType = contentType;
-              requestInfo.contentEncoding = contentEncoding;
-              requestInfo.bodySize = finalResponseBody.length;
-              requestInfo.originalBodySize = responseBuffer.length;
-              requestInfo.isCompressed = isCompressed;
-              let uuid = uuidv4()
-              requestInfo.uuid = uuid;
+              this.requestInfos[id].statusCode = proxyRes.statusCode;
+              this.requestInfos[id].statusMessage = proxyRes.statusMessage;
+              this.requestInfos[id].responseHeaders = proxyRes.headers;
+              this.requestInfos[id].contentType = contentType;
+              this.requestInfos[id].contentEncoding = contentEncoding;
+              this.requestInfos[id].bodySize = finalResponseBody.length;
+              this.requestInfos[id].originalBodySize = responseBuffer.length;
+              this.requestInfos[id].isCompressed = isCompressed;
+              this.requestInfos[id].uuid = id;
 
               // 根据内容类型格式化响应体
               if (isJson && finalResponseBody) {
                 try {
-                  requestInfo.responseBody = JSON.stringify(JSON.parse(finalResponseBody), null, 2);
+                  this.requestInfos[id].responseBody = JSON.stringify(JSON.parse(finalResponseBody), null, 2);
                 } catch (e) {
-                  requestInfo.responseBody = finalResponseBody;
+                  this.requestInfos[id].responseBody = finalResponseBody;
                 }
               } else if (isFile) {
                 if (proxyRes.headers["Content-Disposition"]) {
-                  requestInfo.responseBody = proxyRes.headers["Content-Disposition"].replaceAll('filename=', '').replaceAll('"', '')
+                  this.requestInfos[id].responseBody = proxyRes.headers["Content-Disposition"].replaceAll('filename=', '').replaceAll('"', '')
                 } else {
-                  requestInfo.responseBody = decodeURIComponent(fullUrl.match(/https?:\/\/[^\/]+\/(?:[^\/]+\/)*([^\/?]+)(?=\?|$)/)[1])
+                  this.requestInfos[id].responseBody = decodeURIComponent(fullUrl.match(/https?:\/\/[^\/]+\/(?:[^\/]+\/)*([^\/?]+)(?=\?|$)/)[1])
                 }
               } else {
-                requestInfo.responseBody = finalResponseBody;
+                this.requestInfos[id].responseBody = finalResponseBody;
               }
 
               // 单词PK词库接口
@@ -851,17 +850,17 @@ class AnswerProxy {
                 console.error('缓存单词PK词库数据失败:', e);
               }
 
-              this.safeIpcSend('traffic-log', requestInfo);
+              this.safeIpcSend('traffic-log', this.requestInfos[id]);
 
-              requestInfo.originalResponse = responseBuffer;
-              this.trafficCache.set(uuid, requestInfo)
+              this.requestInfos[id].originalResponse = responseBuffer;
+              this.trafficCache.set(id, this.requestInfos[id])
 
               // 检查是否包含答案下载链接
-              if (isFile && requestInfo.responseBody.includes('zip')) {
+              if (isFile && this.requestInfos[id].responseBody.includes('zip')) {
                 fs.mkdirSync(tempDir, { recursive: true });
                 fs.mkdirSync(ansDir, { recursive: true });
-                const filePath = path.join(tempDir, requestInfo.responseBody)
-                await this.downloadFileByUuid(uuid, filePath)
+                const filePath = path.join(tempDir, this.requestInfos[id].responseBody)
+                await this.downloadFileByUuid(id, filePath)
                 await this.extractZipFile(filePath, ansDir)
 
                 try {
