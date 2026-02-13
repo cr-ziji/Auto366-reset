@@ -50,6 +50,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return 0;
     }
   },
+  removeCacheFile: () => {
+    try {
+      fs.rmSync(path.join(cachePath, 'resources'), { recursive: true, force: true });
+      fs.rmSync(path.join(cachePath, 'flipbooks'), { recursive: true, force: true });
+      return 1;
+    } catch (error) {
+      console.error('删除缓存文件失败:', error);
+      return 0;
+    }
+  },
 
   // 响应体更改规则相关API
   getResponseRules: () => ipcRenderer.invoke('get-response-rules'),

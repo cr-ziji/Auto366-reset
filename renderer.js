@@ -85,6 +85,10 @@ class UniversalAnswerFeature {
       this.handleDeleteTemp();
     });
 
+    document.getElementById('deleteFileTempBtn').addEventListener('click', () => {
+      this.handleDeleteFileTemp();
+    })
+
     document.getElementById('sortMode').addEventListener('change', (e) => {
       this.sortMode = e.target.value;
       const container = document.getElementById('answersContainer');
@@ -961,6 +965,24 @@ class UniversalAnswerFeature {
       `;
 
       window.electronAPI.clearCache().then(result => {
+        if (result) {
+          resultDiv.innerHTML = `<div class="log-item success">天学网缓存文件清理成功</div>`;
+        } else {
+          resultDiv.innerHTML = `<div class="log-item error">天学网缓存文件清理失败</div>`;
+        }
+      });
+    }
+  }
+
+  handleDeleteFileTemp(){
+    const resultDiv = document.getElementById('trafficLog');
+
+    if (confirm('确定要删除天学网临时缓存文件夹吗？此操作将删除所有天学网已下载的课本缓存文件。')) {
+      resultDiv.innerHTML = `
+        <div class="log-item">正在删除临时天学网缓存文件夹...</div>
+      `;
+
+      window.electronAPI.removeCacheFile().then(result => {
         if (result) {
           resultDiv.innerHTML = `<div class="log-item success">缓存清理成功</div>`;
         } else {
