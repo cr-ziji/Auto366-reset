@@ -550,7 +550,7 @@ class AnswerProxy {
           isHttps: false,
           requestHeaders: ctx.clientToProxyRequest.headers,
         }
-        let requestBody = [], responseBody = [], totalLength = 0;
+        let requestBody = [], responseBody = [];
         ctx.onRequestData((ctx, chunk, callback) => {
           requestBody.push(chunk)
           return callback(null, chunk);
@@ -565,17 +565,16 @@ class AnswerProxy {
           requestInfo.responseHeaders = ctx.serverToProxyResponse.headers;
           requestInfo.contentType = ctx.serverToProxyResponse.headers['content-type'];
           requestInfo.contentEncoding = ctx.serverToProxyResponse.headers['content-encoding'];
-          if (requestInfo.contentEncoding.includes('gzip')) ctx.use(Proxy.gunzip);
           requestInfo.isCompressed = !!requestInfo.contentEncoding;
           return callback();
         })
         ctx.onResponseData((ctx, chunk, callback) => {
           responseBody.push(chunk)
-          totalLength += chunk.length;
           return callback(null, chunk);
         })
-        ctx.onResponseEnd((ctx, callback) => {
-          requestInfo.responseBody = Buffer.concat(responseBody, totalLength).toString();
+        ctx.onResponseEnd(async (ctx, callback) => {
+          const { buffer, text } = await this.decompressResponse(Buffer.concat(responseBody), ctx.serverToProxyResponse.headers['content-encoding']);
+          requestInfo.responseBody = text;
           requestInfo.bodySize = requestInfo.responseBody.length;
           this.safeIpcSend('traffic-log', requestInfo);
           return callback()
