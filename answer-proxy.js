@@ -3,7 +3,8 @@ const http = require('http')
 const https = require('https')
 const fs = require('fs-extra')
 const StreamZip = require('node-stream-zip')
-const mitmproxy = require('node-mitmproxy-pro')
+const Proxy = require('http-mitm-proxy').Proxy;
+const proxy = new Proxy();
 const zlib = require('zlib')
 const path = require('path')
 const { app } = require('electron')
@@ -17,7 +18,6 @@ const rulesDir = path.join(app.getPath('userData'), 'response-rules');
 
 class AnswerProxy {
   constructor() {
-    this.proxyAgent = null;
     this.downloadUrl = '';
     this.mainWindow = null;
     this.trafficCache = new Map();
@@ -533,13 +533,68 @@ class AnswerProxy {
     });
   }
 
+  startProxyPromise(){
+    return new Promise((resolve) => {
+      proxy.onError(function(ctx, err) {
+        console.error('代理出错:', err);
+      });
+
+      proxy.onRequest((ctx, callback) => {
+        const protocol = "http"; // 不知道怎么检测http还是https
+        const fullUrl = `${protocol}://${ctx.clientToProxyRequest.headers.host}${ctx.clientToProxyRequest.url}`;
+        let requestInfo = {
+          method: ctx.clientToProxyRequest.method,
+          url: fullUrl,
+          host: ctx.clientToProxyRequest.headers.host,
+          timestamp: new Date().toISOString(),
+          isHttps: false,
+          requestHeaders: ctx.clientToProxyRequest.headers,
+        }
+        let requestBody = [], responseBody = [], totalLength = 0;
+        ctx.onRequestData((ctx, chunk, callback) => {
+          requestBody.push(chunk)
+          return callback(null, chunk);
+        })
+        ctx.onRequestEnd((ctx, callback) => {
+          requestInfo.requestBody = Buffer.concat(requestBody).toString()
+          return callback();
+        })
+        ctx.onResponse((ctx, callback) => {
+          requestInfo.statusCode = ctx.serverToProxyResponse.statusCode;
+          requestInfo.statusMessage = ctx.serverToProxyResponse.statusMessage;
+          requestInfo.responseHeaders = ctx.serverToProxyResponse.headers;
+          requestInfo.contentType = ctx.serverToProxyResponse.headers['content-type'];
+          requestInfo.contentEncoding = ctx.serverToProxyResponse.headers['content-encoding'];
+          if (requestInfo.contentEncoding.includes('gzip')) ctx.use(Proxy.gunzip);
+          requestInfo.isCompressed = !!requestInfo.contentEncoding;
+          return callback();
+        })
+        ctx.onResponseData((ctx, chunk, callback) => {
+          responseBody.push(chunk)
+          totalLength += chunk.length;
+          return callback(null, chunk);
+        })
+        ctx.onResponseEnd((ctx, callback) => {
+          requestInfo.responseBody = Buffer.concat(responseBody, totalLength).toString();
+          requestInfo.bodySize = requestInfo.responseBody.length;
+          this.safeIpcSend('traffic-log', requestInfo);
+          return callback()
+        })
+        return callback();
+      });
+
+      proxy.listen({host: '127.0.0.1', port: 5291}, resolve);
+    });
+  }
+
   // 启动抓包代理
   async startProxy(mainWindow) {
     this.mainWindow = mainWindow;
 
-    if (this.proxyAgent) {
-      this.stopProxy();
-    }
+    this.stopProxy();
+
+    // 创建MITM代理实例
+    await this.startProxyPromise();
 
     // 自动导入证书
     try {
@@ -550,17 +605,6 @@ class AnswerProxy {
 
       // 先尝试正常导入
       let certResult = await this.certManager.importCertificate();
-
-      // 如果显示"已存在"但实际可能没有，尝试强制导入
-      // if (certResult.status === 'exists') {
-      //   console.log('检测到证书可能已存在，但为了确保正确性，尝试强制重新导入...');
-      //   this.safeIpcSend('certificate-status', {
-      //     status: 'importing',
-      //     message: '检测到证书可能已存在，正在强制重新导入以确保正确性...'
-      //   });
-      //
-      //   certResult = await this.certManager.forceImportCertificate();
-      // }
 
       // 发送证书导入结果状态
       this.safeIpcSend('certificate-status', {
@@ -579,352 +623,6 @@ class AnswerProxy {
       console.warn('证书导入过程中发生错误，但代理将继续启动:', error);
     }
 
-    // 创建MITM代理实例
-    this.proxyAgent = mitmproxy.createProxy({
-      port: 5291,
-      ssl: {
-        rejectUnauthorized: false
-      },
-      sslConnectInterceptor: (req, cltSocket, head) => {
-        return true;
-      },
-      requestInterceptor: (id, requestOptions, clientReq, clientRes, proxyReq, ssl, next) => {
-        try {
-          // 构建请求URL
-          const protocol = ssl ? "https" : "http";
-          const fullUrl = `${protocol}://${requestOptions.hostname || requestOptions.host}${requestOptions.path}`;
-
-          // 记录请求信息
-          // console.log(`拦截请求: ${clientReq.method} ${fullUrl}`);
-
-          // 应用请求修改规则
-          const modifiedRequest = this.applyRequestRules(fullUrl, clientReq.method, requestOptions, clientReq.headers);
-
-          if (modifiedRequest.modified) {
-            console.log(`请求已被规则修改: ${modifiedRequest.appliedRules.join(', ')}`);
-
-            // 检查是否被阻止
-            if (modifiedRequest.requestOptions.blocked) {
-              console.log(`请求被阻止: ${fullUrl}`);
-              clientRes.writeHead(403, { 'Content-Type': 'text/plain' });
-              clientRes.end('Request blocked by proxy rules');
-              return; // 不调用next()，阻止请求继续
-            }
-
-            // 应用修改后的请求选项
-            Object.assign(requestOptions, modifiedRequest.requestOptions);
-
-            // 应用修改后的请求头
-            if (modifiedRequest.headers) {
-              Object.assign(requestOptions.headers, modifiedRequest.headers);
-            }
-          }
-
-          if (this.isFileInfoRequest(fullUrl)) {
-            console.log('检测到文件信息请求，暂停处理...', fullUrl);
-            this.handleFileInfoRequest(fullUrl, clientReq, clientRes, requestOptions, ssl);
-            return;
-          }
-
-          if (this.isFileRequest(fullUrl)) {
-            console.log('检测到文件请求，暂停处理...', fullUrl);
-            this.handleFileRequest(fullUrl, clientReq, clientRes, requestOptions, ssl);
-            return;
-          }
-          this.requestInfos[id] = {}
-          this.requestInfos[id].method = clientReq.method
-          this.requestInfos[id].url = fullUrl
-          this.requestInfos[id].host = clientReq.headers.host
-          this.requestInfos[id].timestamp = new Date().toISOString()
-          this.requestInfos[id].isHttps = ssl
-          this.requestInfos[id].requestHeaders = clientReq.headers
-          let requestBody = [];
-          clientReq.on('data', chunk => {
-            requestBody.push(chunk)
-          });
-          clientReq.on('end', () => {
-            this.requestInfos[id].requestBody = Buffer.concat(requestBody).toString()
-          });
-          clientReq.pipe(proxyReq);
-
-          // 发送请求拦截日志
-          this.safeIpcSend('request-intercepted', {
-            method: clientReq.method,
-            url: fullUrl,
-            headers: requestOptions.headers,
-            modified: modifiedRequest.modified,
-            appliedRules: modifiedRequest.appliedRules || [],
-            timestamp: new Date().toISOString()
-          });
-
-        } catch (error) {
-          console.error('请求拦截器错误:', error);
-        }
-
-        next();
-      },
-      responseInterceptor: (id, res, proxyRes, ssl, next) => {
-        try {
-          // 构建请求信息
-          let fullUrl = this.requestInfos[id].url;
-
-          // 检查内容类型和编码
-          const contentType = proxyRes.headers['content-type'] || '';
-          const contentEncoding = proxyRes.headers['content-encoding'] || '';
-          const isJson = /application\/json/.test(contentType);
-          const isFile = /application\/octet-stream|image/.test(contentType);
-          const contentLengthIsZero = proxyRes.headers['content-length'] === 0;
-          const isCompressed = Boolean(contentEncoding) && !isFile;
-
-          // console.log(`请求: ${fullUrl}, 内容类型: ${contentType}, 是否压缩: ${isCompressed}`);
-
-          // 应用响应头修改规则
-          const headerResult = this.applyResponseHeaderRules(fullUrl, this.requestInfos[id].method, proxyRes.headers);
-
-          // 统一处理所有响应，收集完整数据后再发送
-          const chunks = [];
-          let totalLength = 0;
-          let responseHandled = false; // 添加标志防止重复处理
-
-          proxyRes.on('data', (chunk) => {
-            chunks.push(chunk);
-            totalLength += chunk.length;
-          });
-
-          proxyRes.on('end', async () => {
-            if (responseHandled) return; // 防止重复处理
-            responseHandled = true;
-
-            try {
-              // 合并所有chunks
-              const responseBuffer = Buffer.concat(chunks, totalLength);
-              let finalBuffer = responseBuffer;
-              let finalResponseBody = '';
-
-              // 只有在内容长度不为0时才处理响应体
-              if (!contentLengthIsZero) {
-                // 解压缩响应体
-                let responseBody;
-                let decompressedBuffer;
-                if (isCompressed) {
-                  // console.log(`开始解压缩响应 (${contentEncoding})`);
-                  const decompressed = await this.decompressResponse(responseBuffer, contentEncoding);
-                  responseBody = decompressed.text;
-                  decompressedBuffer = decompressed.buffer;
-                } else {
-                  responseBody = responseBuffer.toString('utf8');
-                  decompressedBuffer = responseBuffer;
-                }
-
-                // 应用响应体更改规则
-                const ruleResult = this.applyResponseRules(
-                  fullUrl,
-                  this.requestInfos[id].method,
-                  contentType,
-                  responseBody,
-                  decompressedBuffer
-                );
-
-                finalResponseBody = responseBody;
-
-                if (ruleResult.modified) {
-                  console.log(`响应体已被规则修改: ${ruleResult.appliedRules.join(', ')}`);
-                  finalResponseBody = ruleResult.body;
-
-                  // 使用修改后的buffer
-                  let modifiedBuffer = ruleResult.buffer;
-
-                  // 重新压缩修改后的内容（如果原来是压缩的）
-                  if (isCompressed) {
-                    try {
-                      if (contentEncoding.includes('gzip')) {
-                        finalBuffer = await new Promise((resolve, reject) => {
-                          zlib.gzip(modifiedBuffer, (err, result) => {
-                            if (err) reject(err);
-                            else resolve(result);
-                          });
-                        });
-                      } else if (contentEncoding.includes('deflate')) {
-                        finalBuffer = await new Promise((resolve, reject) => {
-                          zlib.deflate(modifiedBuffer, (err, result) => {
-                            if (err) reject(err);
-                            else resolve(result);
-                          });
-                        });
-                      } else if (contentEncoding.includes('br')) {
-                        finalBuffer = await new Promise((resolve, reject) => {
-                          zlib.brotliCompress(modifiedBuffer, (err, result) => {
-                            if (err) reject(err);
-                            else resolve(result);
-                          });
-                        });
-                      } else {
-                        finalBuffer = modifiedBuffer;
-                      }
-                    } catch (compressError) {
-                      console.error('重新压缩失败，发送未压缩内容:', compressError);
-                      finalBuffer = modifiedBuffer;
-                      // 如果压缩失败，需要移除压缩相关的头部
-                      delete proxyRes.headers['content-encoding'];
-                    }
-                  } else {
-                    finalBuffer = modifiedBuffer;
-                  }
-
-                  // 记录修改信息
-                  this.requestInfos[id].modifiedByRules = ruleResult.appliedRules;
-                }
-              }
-
-              // 设置所有响应头（在writeHead之前）
-              Object.keys(proxyRes.headers).forEach(function (key) {
-                if (proxyRes.headers[key] !== undefined) {
-                  if (key.toLowerCase() === 'content-length') {
-                    // 使用最终buffer的长度
-                    res.setHeader(key, finalBuffer.length);
-                  } else {
-                    res.setHeader(key, proxyRes.headers[key]);
-                  }
-                }
-              });
-
-              // 应用修改后的响应头
-              if (headerResult.modified && headerResult.headers) {
-                Object.keys(headerResult.headers).forEach(function (key) {
-                  if (headerResult.headers[key] !== undefined) {
-                    res.setHeader(key, headerResult.headers[key]);
-                  }
-                });
-                console.log(`响应头已被规则修改: ${headerResult.appliedRules.join(', ')}`);
-                this.requestInfos[id].headersModifiedByRules = headerResult.appliedRules;
-              }
-
-              // 发送响应头和响应体
-              res.writeHead(proxyRes.statusCode);
-              res.write(finalBuffer);
-              res.end();
-
-              // 发送完整的请求响应信息
-              this.requestInfos[id].statusCode = proxyRes.statusCode;
-              this.requestInfos[id].statusMessage = proxyRes.statusMessage;
-              this.requestInfos[id].responseHeaders = proxyRes.headers;
-              this.requestInfos[id].contentType = contentType;
-              this.requestInfos[id].contentEncoding = contentEncoding;
-              this.requestInfos[id].bodySize = finalResponseBody.length;
-              this.requestInfos[id].originalBodySize = responseBuffer.length;
-              this.requestInfos[id].isCompressed = isCompressed;
-              this.requestInfos[id].uuid = id;
-
-              // 根据内容类型格式化响应体
-              if (isJson && finalResponseBody) {
-                try {
-                  this.requestInfos[id].responseBody = JSON.stringify(JSON.parse(finalResponseBody), null, 2);
-                } catch (e) {
-                  this.requestInfos[id].responseBody = finalResponseBody;
-                }
-              } else if (isFile) {
-                if (proxyRes.headers["Content-Disposition"]) {
-                  this.requestInfos[id].responseBody = proxyRes.headers["Content-Disposition"].replaceAll('filename=', '').replaceAll('"', '')
-                } else {
-                  this.requestInfos[id].responseBody = decodeURIComponent(fullUrl.match(/https?:\/\/[^\/]+\/(?:[^\/]+\/)*([^\/?]+)(?=\?|$)/)[1])
-                }
-              } else {
-                this.requestInfos[id].responseBody = finalResponseBody;
-              }
-
-              // 单词PK词库接口
-              try {
-                if (fullUrl.includes('https://words-v2-api.up366.cn/client/sync/teaching/bucket/detail-info')) {
-                  this.wordPkBucketData = finalResponseBody;
-                  console.log('已缓存单词PK词库数据，长度:', finalResponseBody.length);
-                }
-              } catch (e) {
-                console.error('缓存单词PK词库数据失败:', e);
-              }
-              try {
-                if (fullUrl.includes('https://wordsbtl-api.up366.cn/client/wordsbtl/student/start')) {
-                  this.wordPkBucketData = finalResponseBody;
-                  console.log('已缓存单词PK词库数据，长度:', finalResponseBody.length);
-                }
-              } catch (e) {
-                console.error('缓存单词PK词库数据失败:', e);
-              }
-
-              this.safeIpcSend('traffic-log', this.requestInfos[id]);
-
-              this.requestInfos[id].originalResponse = responseBuffer;
-              this.trafficCache.set(id, this.requestInfos[id])
-
-              // 检查是否包含答案下载链接
-              if (isFile && this.requestInfos[id].responseBody.includes('zip')) {
-                fs.mkdirSync(tempDir, { recursive: true });
-                fs.mkdirSync(ansDir, { recursive: true });
-                const filePath = path.join(tempDir, this.requestInfos[id].responseBody)
-                await this.downloadFileByUuid(id, filePath)
-                await this.extractZipFile(filePath, ansDir)
-
-                try {
-                  const shouldKeepCache = await this.mainWindow.webContents.executeJavaScript(`
-                    localStorage.getItem('keep-cache-files') === 'true'
-                  `);
-
-                  if (!shouldKeepCache) {
-                    fs.unlink(filePath)
-                    fs.rm(filePath.replace('.zip', ''), { recursive: true, force: true })
-                  }
-                } catch (error) {
-                  fs.unlink(filePath)
-                  fs.rm(filePath.replace('.zip', ''), { recursive: true, force: true })
-                }
-              }
-
-
-
-            } catch (error) {
-              console.error('处理响应数据时出错:', error);
-              try {
-                if (!res.headersSent) {
-                  res.writeHead(proxyRes.statusCode || 500);
-                  res.end('Response processing error');
-                }
-              } catch (e) {
-                console.error('发送错误响应失败:', e);
-              }
-            }
-          });
-
-          proxyRes.on('error', (error) => {
-            if (responseHandled) return; // 防止重复处理
-            responseHandled = true;
-
-            console.error('响应流错误:', error);
-            try {
-              if (!res.headersSent) {
-                res.writeHead(500);
-                res.end('Response stream error');
-              }
-            } catch (e) {
-              console.error('发送错误响应失败:', e);
-            }
-          });
-
-        } catch (error) {
-          console.error('响应拦截器错误:', error);
-          // 不要使用 pipe，而是手动发送错误响应
-          try {
-            if (!res.headersSent) {
-              res.writeHead(500, { 'Content-Type': 'text/plain' });
-              res.end('Proxy error occurred');
-            }
-          } catch (e) {
-            console.error('发送错误响应失败:', e);
-          }
-        }
-
-        // 不调用 next()，因为我们已经完全处理了响应
-      }
-    });
-
     // 启动本地词库HTTP服务器
     this.startBucketServer();
 
@@ -936,24 +634,22 @@ class AnswerProxy {
   }
 
   stopProxy() {
-    if (this.proxyAgent) {
-      this.safeIpcSend('capture-status', { capturing: false });
-      this.proxyAgent.close();
-      this.proxyAgent = null;
+    try {
+      proxy.close();
       this.safeIpcSend('proxy-status', {
         running: false,
         message: '代理服务器已停止'
       });
-    }
-
-    if (this.bucketServer) {
-      try {
-        this.bucketServer.close();
-      } catch (e) {
-        console.error('关闭词库HTTP服务器失败:', e);
+      if (this.bucketServer) {
+        try {
+          this.bucketServer.close();
+        } catch (e) {
+          console.error('关闭词库HTTP服务器失败:', e);
+        }
+        this.bucketServer = null;
       }
-      this.bucketServer = null;
     }
+    catch (_) {}
   }
 
   setWordPkBucketData(data) {

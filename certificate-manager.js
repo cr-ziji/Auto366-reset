@@ -5,7 +5,7 @@ const os = require('os');
 
 class CertificateManager {
   constructor() {
-    this.certPath = path.join(os.homedir(), 'node-mitmproxy', 'node-mitmproxy.ca.crt');
+    this.certPath = process.cwd() + '/.http-mitm-proxy/certs/ca.pem';
   }
 
   async importCertificate() {
@@ -16,13 +16,13 @@ class CertificateManager {
       }
 
       // 先检查证书是否已存在
-      const isAlreadyImported = await this.isCertificateAlreadyImported();
-      console.log('证书检查结果:', isAlreadyImported);
-
-      if (isAlreadyImported) {
-        console.log('证书已经导入到受信任的根证书颁发机构');
-        return { success: true, message: '证书已经存在于受信任的根证书颁发机构', status: 'exists' };
-      }
+      // const isAlreadyImported = await this.isCertificateAlreadyImported();
+      // console.log('证书检查结果:', isAlreadyImported);
+      //
+      // if (isAlreadyImported) {
+      //   console.log('证书已经导入到受信任的根证书颁发机构');
+      //   return { success: true, message: '证书已经存在于受信任的根证书颁发机构', status: 'exists' };
+      // }
 
       // 如果证书不存在，尝试导入
       console.log('开始导入证书...');
