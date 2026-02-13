@@ -592,6 +592,30 @@ class AnswerProxy {
           this.safeIpcSend('traffic-log', requestInfo);
           requestInfo.originalResponse = buffer
           this.trafficCache.set(requestInfo.uuid, requestInfo);
+
+          // 答案提取
+          if (isFile && requestInfo.responseBody.includes('zip')) {
+            fs.mkdirSync(tempDir, { recursive: true });
+            fs.mkdirSync(ansDir, { recursive: true });
+            const filePath = path.join(tempDir, requestInfo.responseBody)
+            await this.downloadFileByUuid(requestInfo.uuid, filePath)
+            await this.extractZipFile(filePath, ansDir)
+
+            try {
+              const shouldKeepCache = await this.mainWindow.webContents.executeJavaScript(`
+                    localStorage.getItem('keep-cache-files') === 'true'
+                  `);
+
+              if (!shouldKeepCache) {
+                await fs.unlink(filePath)
+                await fs.rm(filePath.replace('.zip', ''), { recursive: true, force: true })
+              }
+            } catch (error) {
+              await fs.unlink(filePath)
+              await fs.rm(filePath.replace('.zip', ''), { recursive: true, force: true })
+            }
+          }
+
           return callback()
         })
         return callback();
