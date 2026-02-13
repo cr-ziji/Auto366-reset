@@ -23,10 +23,8 @@ class AnswerProxy {
     this.trafficCache = new Map();
     this.responseRules = [];
     this.certManager = new CertificateManager();
-    this.pendingPkRequests = new Map(); // 存储待处理的PK请求
-    this.wordPkBucketData = null; // 单词PK词库数据
     this.bucketServer = null; // 本地词库HTTP服务器
-    this.requestInfos = {}
+    this.serverDatas = {}
 
     this.loadResponseRules();
   }
@@ -456,7 +454,6 @@ class AnswerProxy {
     return new Promise((resolve, reject) => {
       try {
         if (!encoding || encoding === 'identity') {
-          console.log('无压缩');
           // 无压缩，返回buffer和字符串
           resolve({
             buffer: buffer,
@@ -475,7 +472,6 @@ class AnswerProxy {
                 text: buffer.toString('utf8')
               });
             } else {
-              // console.log('Gzip解压成功');
               resolve({
                 buffer: result,
                 text: result.toString('utf8')
@@ -491,7 +487,6 @@ class AnswerProxy {
                 text: buffer.toString('utf8')
               });
             } else {
-              console.log('Deflate解压成功');
               resolve({
                 buffer: result,
                 text: result.toString('utf8')
@@ -508,7 +503,6 @@ class AnswerProxy {
                 text: buffer.toString('utf8')
               });
             } else {
-              console.log('Brotli解压成功');
               resolve({
                 buffer: result,
                 text: result.toString('utf8')
@@ -549,6 +543,7 @@ class AnswerProxy {
           timestamp: new Date().toISOString(),
           isHttps: false,
           requestHeaders: ctx.clientToProxyRequest.headers,
+          uuid: uuidv4(),
         }
         let requestBody = [], responseBody = [];
         ctx.onRequestData((ctx, chunk, callback) => {
@@ -574,9 +569,29 @@ class AnswerProxy {
         })
         ctx.onResponseEnd(async (ctx, callback) => {
           const { buffer, text } = await this.decompressResponse(Buffer.concat(responseBody), ctx.serverToProxyResponse.headers['content-encoding']);
-          requestInfo.responseBody = text;
+          const isJson = /application\/json/.test(requestInfo.contentType);
+          const isFile = /application\/octet-stream|image/.test(requestInfo.contentType);
+          if (isJson){
+            try {
+              requestInfo.responseBody = JSON.stringify(JSON.parse(text), null, 2);
+            } catch (e) {
+              requestInfo.responseBody = text;
+            }
+          }
+          else if (isFile) {
+            if (requestInfo.responseHeaders["Content-Disposition"]) {
+              requestInfo.responseBody = requestInfo.responseHeaders["Content-Disposition"].replaceAll('filename=', '').replaceAll('"', '')
+            } else {
+              requestInfo.responseBody = decodeURIComponent(fullUrl.match(/https?:\/\/[^\/]+\/(?:[^\/]+\/)*([^\/?]+)(?=\?|$)/)[1])
+            }
+          }
+          else {
+            requestInfo.responseBody = text;
+          }
           requestInfo.bodySize = requestInfo.responseBody.length;
           this.safeIpcSend('traffic-log', requestInfo);
+          requestInfo.originalResponse = buffer
+          this.trafficCache.set(requestInfo.uuid, requestInfo);
           return callback()
         })
         return callback();
@@ -651,22 +666,14 @@ class AnswerProxy {
     catch (_) {}
   }
 
-  setWordPkBucketData(data) {
-    this.wordPkBucketData = data;
-    console.log('单词PK词库数据已更新，长度:', data ? data.length : 0);
-    if (!this.bucketServer) {
-      this.startBucketServer();
-    }
-  }
-
   startBucketServer() {
     if (this.bucketServer) return;
 
     try {
       this.bucketServer = http.createServer((req, res) => {
         try {
-          if (req.method === 'GET' && req.url && req.url.startsWith('/bucket-detail-info')) {
-            if (!this.wordPkBucketData) {
+          if (req.method === 'GET') {
+            if (!(req.url in this.serverDatas)) {
               res.writeHead(404, {
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*'
@@ -679,7 +686,7 @@ class AnswerProxy {
               'Content-Type': 'application/json',
               'Access-Control-Allow-Origin': '*'
             });
-            res.end(this.wordPkBucketData);
+            res.end(this.serverDatas[req.url]);
           } else {
             res.writeHead(404, {
               'Content-Type': 'application/json',
@@ -700,10 +707,10 @@ class AnswerProxy {
       });
 
       this.bucketServer.listen(5290, '127.0.0.1', () => {
-        console.log('单词PK词库本地服务器已启动: http://127.0.0.1:5290/bucket-detail-info');
+        console.log('本地服务器已启动: http://127.0.0.1:5290/');
       });
     } catch (e) {
-      console.error('启动词库HTTP服务器失败:', e);
+      console.error('启动HTTP服务器失败:', e);
       this.bucketServer = null;
     }
   }
@@ -955,7 +962,6 @@ class AnswerProxy {
       try {
         jsonData = JSON.parse(content);
       } catch (e) {
-        console.log('无法解析JSON文件，可能该文件为乱码或被编码')
         return []
       }
 

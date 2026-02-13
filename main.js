@@ -346,6 +346,7 @@ ipcMain.handle('download-file', async (event, uuid) => {
     await answerProxy.downloadFileByUuid(uuid, result.filePath)
     return 1;
   } catch (error) {
+    console.error('下载文件失败:', error);
     return 0;
   }
 });
