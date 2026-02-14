@@ -41,6 +41,7 @@ auto-pk.zip
 **/temp/
 **/answers/
 .eslintcache
+.http-mitm-proxy
 
 # 测试覆盖率
 coverage/

@@ -1,0 +1,129 @@
+{
+    "标题": "Auto366 注入规则格式说明",
+    "版本": "2.0.0",
+    "更新日期": "2025-02-14",
+    "规则基本结构": {
+        "必填字段": {
+            "id": "规则唯一标识符（自动生成）",
+            "name": "规则名称",
+            "type": "规则类型（content-change/zip-implant/answer-upload）",
+            "enabled": "是否启用（true/false）",
+            "createdAt": "创建时间（自动生成）",
+            "updatedAt": "更新时间（自动生成）"
+        },
+        "可选字段": {
+            "groupId": "所属分组ID（可为null）"
+        }
+    },
+    "规则类型详解": {
+        "content-change": {
+            "说明": "网络请求/响应修改规则",
+            "必填字段": {
+                "changeType": "修改类型（request-headers/request-body/response-headers/response-body）",
+                "action": "操作类型（replace/modify/inject）"
+            },
+            "可选字段": {
+                "urlPattern": "URL匹配模式（正则表达式）",
+                "method": "HTTP方法（GET/POST等）",
+                "contentType": "内容类型（仅response-body有效）"
+            },
+            "操作类型字段": {
+                "replace": {
+                    "replaceWithFile": "是否从文件替换（true/false）",
+                    "filePath": "文件路径（当replaceWithFile为true时）",
+                    "replaceContent": "替换内容（当replaceWithFile为false时）"
+                },
+                "modify": {
+                    "modifyRules": "修改规则数组，每项包含find和replace字段"
+                },
+                "inject": {
+                    "injectContent": "注入内容",
+                    "injectPosition": "注入位置（start/end/before/after）",
+                    "injectTarget": "目标内容（position为before/after时需要）"
+                }
+            }
+        },
+        "zip-implant": {
+            "说明": "ZIP文件植入规则",
+            "必填字段": {
+                "zipImplant": "要植入的ZIP文件路径",
+                "urlZip": "植入请求URL匹配部分"
+            }
+        },
+        "answer-upload": {
+            "说明": "答案上传到本地服务器规则",
+            "必填字段": {
+                "urlUpload": "上传URL匹配部分",
+                "serverLocate": "服务器存储位置",
+                "uploadType": "上传类型（original/resolved）"
+            }
+        }
+    },
+    "示例规则": {
+        "响应体替换": {
+            "id": "rule-001",
+            "name": "替换JSON响应",
+            "type": "content-change",
+            "groupId": null,
+            "enabled": true,
+            "changeType": "response-body",
+            "urlPattern": ".*api/answers.*",
+            "method": "GET",
+            "contentType": "application/json",
+            "action": "replace",
+            "replaceWithFile": false,
+            "replaceContent": "{\"success\": true, \"data\": []}",
+            "createdAt": "2025-02-14T10:30:00.000Z",
+            "updatedAt": "2025-02-14T10:30:00.000Z"
+        },
+        "内容修改": {
+            "id": "rule-002",
+            "name": "修改错误状态",
+            "type": "content-change",
+            "groupId": null,
+            "enabled": true,
+            "changeType": "response-body",
+            "urlPattern": ".*api/.*",
+            "action": "modify",
+            "modifyRules": [
+                {
+                    "find": "\"success\":\\s*false",
+                    "replace": "\"success\": true"
+                }
+            ],
+            "createdAt": "2025-02-14T10:30:00.000Z",
+            "updatedAt": "2025-02-14T10:30:00.000Z"
+        },
+        "ZIP植入": {
+            "id": "rule-003",
+            "name": "植入自定义ZIP",
+            "type": "zip-implant",
+            "groupId": null,
+            "enabled": true,
+            "zipImplant": "C:\\path\\to\\custom.zip",
+            "urlZip": "download/exercise123",
+            "createdAt": "2025-02-14T10:30:00.000Z",
+            "updatedAt": "2025-02-14T10:30:00.000Z"
+        },
+        "答案上传": {
+            "id": "rule-004",
+            "name": "上传答案到本地",
+            "type": "answer-upload",
+            "groupId": null,
+            "enabled": true,
+            "urlUpload": "api/submit",
+            "serverLocate": "/answers",
+            "uploadType": "resolved",
+            "createdAt": "2025-02-14T10:30:00.000Z",
+            "updatedAt": "2025-02-14T10:30:00.000Z"
+        }
+    },
+    "使用说明": [
+        "规则按数组顺序依次应用",
+        "同一请求可被多个规则匹配",
+        "正则表达式需要转义特殊字符",
+        "文件路径使用绝对路径",
+        "新版本兼容旧版本规则格式"
+    ],
+    "存储位置": "用户数据目录/response-rules/rules.json"
+}

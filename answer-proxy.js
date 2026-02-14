@@ -30,7 +30,7 @@ class AnswerProxy {
   }
 
   findLocalFile(url) {
-    const filepath = path.join(fileDir, url.split('/').pop()+'.zip');
+    const filepath = path.join(fileDir, url.split('/').pop() + '.zip');
     console.log(filepath)
     if (!fs.existsSync(filepath)) {
       console.log('未找到对应的本地文件，不更改请求')
@@ -199,116 +199,29 @@ class AnswerProxy {
     }
   }
 
-  // 应用请求修改规则
+  // 应用请求修改规则 - 简化版本，仅用于兼容性
   applyRequestRules(url, method, requestOptions, headers) {
-    try {
-      let modifiedOptions = { ...requestOptions };
-      let modifiedHeaders = { ...headers };
-      let appliedRules = [];
+    // 简化版本：不实际应用规则，只返回原始内容
+    console.log(`请求规则检查: 共有 ${this.responseRules.length} 条规则，但未实际应用`);
 
-      for (const rule of this.responseRules) {
-        if (rule.enabled && rule.type === 'request' && this.matchesRule(rule, url, method)) {
-          console.log(`应用请求规则: ${rule.name} 到 ${url}`);
-
-          switch (rule.action) {
-            case 'modify-headers':
-              if (rule.requestHeaders) {
-                Object.assign(modifiedHeaders, rule.requestHeaders);
-                appliedRules.push(rule.name);
-              }
-              break;
-
-            case 'modify-url':
-              if (rule.newUrl) {
-                const urlObj = new URL(rule.newUrl);
-                modifiedOptions.hostname = urlObj.hostname;
-                modifiedOptions.port = urlObj.port;
-                modifiedOptions.path = urlObj.pathname + urlObj.search;
-                appliedRules.push(rule.name);
-              }
-              break;
-
-            case 'block':
-              // 阻止请求 - 返回错误响应
-              modifiedOptions.blocked = true;
-              appliedRules.push(rule.name);
-              break;
-          }
-        }
-      }
-
-      // 更新请求选项中的headers
-      if (Object.keys(modifiedHeaders).length > 0) {
-        modifiedOptions.headers = modifiedHeaders;
-      }
-
-      return {
-        modified: appliedRules.length > 0,
-        requestOptions: modifiedOptions,
-        headers: modifiedHeaders,
-        appliedRules: appliedRules
-      };
-    } catch (error) {
-      console.error('应用请求修改规则失败:', error);
-      return {
-        modified: false,
-        requestOptions: requestOptions,
-        headers: headers,
-        appliedRules: []
-      };
-    }
+    return {
+      modified: false,
+      requestOptions: requestOptions,
+      headers: headers,
+      appliedRules: []
+    };
   }
 
-  // 应用响应头修改规则
+  // 应用响应头修改规则 - 简化版本，仅用于兼容性
   applyResponseHeaderRules(url, method, responseHeaders) {
-    try {
-      let modifiedHeaders = {};
-      let appliedRules = [];
+    // 简化版本：不实际应用规则，只返回原始内容
+    console.log(`响应头规则检查: 共有 ${this.responseRules.length} 条规则，但未实际应用`);
 
-      for (const rule of this.responseRules) {
-        if (rule.enabled && rule.type === 'response-headers' && this.matchesRule(rule, url, method)) {
-          console.log(`应用响应头规则: ${rule.name} 到 ${url}`);
-
-          switch (rule.action) {
-            case 'add-headers':
-              if (rule.responseHeaders) {
-                Object.assign(modifiedHeaders, rule.responseHeaders);
-                appliedRules.push(rule.name);
-              }
-              break;
-
-            case 'remove-headers':
-              if (rule.removeHeaders && Array.isArray(rule.removeHeaders)) {
-                for (const headerName of rule.removeHeaders) {
-                  modifiedHeaders[headerName] = undefined; // 标记为删除
-                }
-                appliedRules.push(rule.name);
-              }
-              break;
-
-            case 'modify-headers':
-              if (rule.responseHeaders) {
-                Object.assign(modifiedHeaders, rule.responseHeaders);
-                appliedRules.push(rule.name);
-              }
-              break;
-          }
-        }
-      }
-
-      return {
-        modified: appliedRules.length > 0,
-        headers: modifiedHeaders,
-        appliedRules: appliedRules
-      };
-    } catch (error) {
-      console.error('应用响应头修改规则失败:', error);
-      return {
-        modified: false,
-        headers: {},
-        appliedRules: []
-      };
-    }
+    return {
+      modified: false,
+      headers: {},
+      appliedRules: []
+    };
   }
 
   // 检查URL是否匹配规则
@@ -347,106 +260,19 @@ class AnswerProxy {
     }
   }
 
-  // 应用响应体更改规则
+  // 应用响应体更改规则 - 简化版本，仅用于兼容性
   applyResponseRules(url, method, contentType, responseBody, responseBuffer) {
-    try {
-      let modifiedBody = responseBody;
-      let modifiedBuffer = responseBuffer;
-      let appliedRules = [];
-      let isBinaryModified = false;
+    // 简化版本：不实际应用规则，只返回原始内容
+    // 这样可以保持接口兼容性，但不会实际修改响应
+    console.log(`规则检查: 共有 ${this.responseRules.length} 条规则，但未实际应用`);
 
-      for (const rule of this.responseRules) {
-        // 只处理响应体规则（默认类型或明确指定为response）
-        if ((!rule.type || rule.type === 'response') && this.matchesRule(rule, url, method, contentType)) {
-          console.log(`应用响应体规则: ${rule.name} 到 ${url}`);
-
-          switch (rule.action) {
-            case 'replace':
-              if (rule.replaceWithFile && rule.filePath) {
-                // 从文件替换（支持二进制）
-                try {
-                  if (fs.existsSync(rule.filePath)) {
-                    modifiedBuffer = fs.readFileSync(rule.filePath);
-                    modifiedBody = modifiedBuffer.toString('utf8'); // 尝试转换为字符串用于显示
-                    isBinaryModified = true;
-                    appliedRules.push(rule.name);
-                    console.log(`从文件替换响应体: ${rule.filePath}`);
-                  } else {
-                    console.error(`替换文件不存在: ${rule.filePath}`);
-                  }
-                } catch (error) {
-                  console.error(`读取替换文件失败: ${rule.filePath}`, error);
-                }
-              } else {
-                // 文本替换
-                modifiedBody = rule.replaceContent || '';
-                modifiedBuffer = Buffer.from(modifiedBody, 'utf8');
-                appliedRules.push(rule.name);
-              }
-              break;
-
-            case 'modify':
-              if (rule.modifyRules && Array.isArray(rule.modifyRules)) {
-                for (const modifyRule of rule.modifyRules) {
-                  if (modifyRule.find && modifyRule.replace !== undefined) {
-                    try {
-                      const regex = new RegExp(modifyRule.find, 'g');
-                      modifiedBody = modifiedBody.replace(regex, modifyRule.replace);
-                      modifiedBuffer = Buffer.from(modifiedBody, 'utf8');
-                    } catch (regexError) {
-                      console.error('正则表达式错误:', regexError);
-                    }
-                  }
-                }
-                appliedRules.push(rule.name);
-              }
-              break;
-
-            case 'inject':
-              if (rule.injectContent) {
-                switch (rule.injectPosition) {
-                  case 'start':
-                    modifiedBody = rule.injectContent + modifiedBody;
-                    break;
-                  case 'end':
-                    modifiedBody = modifiedBody + rule.injectContent;
-                    break;
-                  case 'before':
-                    if (rule.injectTarget) {
-                      modifiedBody = modifiedBody.replace(rule.injectTarget, rule.injectContent + rule.injectTarget);
-                    }
-                    break;
-                  case 'after':
-                    if (rule.injectTarget) {
-                      modifiedBody = modifiedBody.replace(rule.injectTarget, rule.injectTarget + rule.injectContent);
-                    }
-                    break;
-                }
-                modifiedBuffer = Buffer.from(modifiedBody, 'utf8');
-                appliedRules.push(rule.name);
-              }
-              break;
-          }
-        }
-      }
-
-      return {
-        modified: appliedRules.length > 0,
-        body: modifiedBody,
-        buffer: modifiedBuffer,
-        isBinaryModified: isBinaryModified,
-        appliedRules: appliedRules
-      };
-    } catch (error) {
-      console.error('应用响应体更改规则失败:', error);
-      return {
-        modified: false,
-        body: responseBody,
-        buffer: responseBuffer,
-        isBinaryModified: false,
-        appliedRules: []
-      };
-    }
+    return {
+      modified: false,
+      body: responseBody,
+      buffer: responseBuffer,
+      isBinaryModified: false,
+      appliedRules: []
+    };
   }
 
   // 响应体解压缩工具函数
@@ -527,9 +353,9 @@ class AnswerProxy {
     });
   }
 
-  startProxyPromise(){
+  startProxyPromise() {
     return new Promise((resolve) => {
-      proxy.onError(function(ctx, err) {
+      proxy.onError(function (ctx, err) {
         console.error('代理出错:', err);
       });
 
@@ -571,7 +397,7 @@ class AnswerProxy {
           const { buffer, text } = await this.decompressResponse(Buffer.concat(responseBody), ctx.serverToProxyResponse.headers['content-encoding']);
           const isJson = /application\/json/.test(requestInfo.contentType);
           const isFile = /application\/octet-stream|image/.test(requestInfo.contentType);
-          if (isJson){
+          if (isJson) {
             try {
               requestInfo.responseBody = JSON.stringify(JSON.parse(text), null, 2);
             } catch (e) {
@@ -621,7 +447,7 @@ class AnswerProxy {
         return callback();
       });
 
-      proxy.listen({host: '127.0.0.1', port: 5291}, resolve);
+      proxy.listen({ host: '127.0.0.1', port: 5291 }, resolve);
     });
   }
 
@@ -687,7 +513,7 @@ class AnswerProxy {
         this.bucketServer = null;
       }
     }
-    catch (_) {}
+    catch (_) { }
   }
 
   startBucketServer() {
@@ -726,7 +552,7 @@ class AnswerProxy {
               'Access-Control-Allow-Origin': '*'
             });
             res.end(JSON.stringify({ error: 'server error' }));
-          } catch (_) {}
+          } catch (_) { }
         }
       });
 
@@ -1916,6 +1742,11 @@ class AnswerProxy {
     } catch (e) {
       console.error('发送错误响应失败:', e);
     }
+  }
+  // 从数据中提取答案（简化版本，仅用于兼容性）
+  extractAnswersFromData(data) {
+    // 简化版本：直接返回原始数据
+    return data;
   }
 }
 

@@ -974,7 +974,7 @@ class UniversalAnswerFeature {
     }
   }
 
-  handleDeleteFileTemp(){
+  handleDeleteFileTemp() {
     const resultDiv = document.getElementById('trafficLog');
 
     if (confirm('确定要删除天学网临时缓存文件夹吗？此操作将删除所有天学网已下载的课本缓存文件。')) {
@@ -1149,7 +1149,7 @@ class UniversalAnswerFeature {
     }
   }
 
-  async appendImplant(){
+  async appendImplant() {
     window.electronAPI.openImplantZipChoosing();
   }
 }
@@ -1169,20 +1169,20 @@ document.addEventListener('DOMContentLoaded', () => {
 // 响应体更改规则功能初始化
 function initResponseRulesFeature() {
   console.log('初始化响应体更改规则功能...');
-  
+
   // 检查 electronAPI 是否可用
   if (!window.electronAPI) {
     console.error('window.electronAPI 未定义');
     return;
   }
-  
+
   if (!window.electronAPI.getResponseRules) {
     console.error('window.electronAPI.getResponseRules 未定义');
     return;
   }
-  
+
   console.log('electronAPI 检查通过');
-  
+
   const responseRulesBtn = document.getElementById('responseRulesBtn');
   const responseRulesModal = document.getElementById('response-rules-modal');
   const closeResponseRules = document.getElementById('close-response-rules');
@@ -1193,7 +1193,7 @@ function initResponseRulesFeature() {
     console.error('未找到 responseRulesBtn 元素');
     return;
   }
-  
+
   if (!responseRulesModal) {
     console.error('未找到 response-rules-modal 元素');
     return;
@@ -1272,7 +1272,7 @@ function initResponseRulesFeature() {
 // 规则编辑表单初始化
 function initRuleEditForm() {
   console.log('初始化规则编辑表单事件监听器...');
-  
+
   // 规则类型变化事件
   const ruleTypeSelect = document.getElementById('rule-type');
   if (ruleTypeSelect) {
@@ -1387,13 +1387,13 @@ async function loadResponseRules() {
     console.log('调用 window.electronAPI.getResponseRules()...');
     const rules = await window.electronAPI.getResponseRules();
     console.log('获取到的规则:', rules);
-    
+
     if (!Array.isArray(rules)) {
       console.error('规则数据不是数组:', typeof rules, rules);
       showToast('规则数据格式错误', 'error');
       return;
     }
-    
+
     displayResponseRules(rules);
     updateRulesStatus(rules);
     console.log('规则加载完成');
@@ -1411,11 +1411,11 @@ function updateRulesStatus(rules) {
 
   const rulesCountElement = document.getElementById('rules-count');
   const activeRulesCountElement = document.getElementById('active-rules-count');
-  
+
   if (rulesCountElement) {
     rulesCountElement.textContent = `规则数量: ${totalCount}`;
   }
-  
+
   if (activeRulesCountElement) {
     activeRulesCountElement.textContent = `启用: ${enabledCount}`;
   }
@@ -1520,8 +1520,13 @@ function createRuleItemHTML(rule) {
 }
 
 // 获取规则类型文本
+// 获取规则类型文本
 function getRuleTypeText(type) {
   const typeMap = {
+    'content-change': '网络请求/响应修改',
+    'zip-implant': 'ZIP文件植入',
+    'answer-upload': '答案上传到本地服务器',
+    // 兼容旧的规则类型
     'response': '响应体修改',
     'request': '请求修改',
     'response-headers': '响应头修改'
@@ -1862,75 +1867,121 @@ async function loadGroupOptions() {
 }
 
 // 填充规则表单
+// 填充规则表单 - 支持新的规则类型
 async function fillRuleForm(rule) {
   document.getElementById('rule-name').value = rule.name || '';
   document.getElementById('rule-group').value = rule.groupId || '';
   document.getElementById('rule-type').value = rule.type || 'content-change';
-  document.getElementById('rule-url-pattern').value = rule.urlPattern || '';
-  document.getElementById('rule-method').value = rule.method || '';
   document.getElementById('rule-enabled').checked = rule.enabled !== false;
 
   // 处理规则类型变化
   await handleRuleTypeChange(rule.type || 'content-change');
 
-  // 内容类型只对响应体规则有效
-  if (rule.type === 'response') {
-    document.getElementById('rule-content-type').value = rule.contentType || '';
-  }
+  // 根据规则类型填充不同的字段
+  switch (rule.type) {
+    case 'content-change':
+      document.getElementById('change-type').value = rule.changeType || 'response-body';
+      document.getElementById('rule-url-pattern').value = rule.urlPattern || '';
+      document.getElementById('rule-method').value = rule.method || '';
+      document.getElementById('rule-action').value = rule.action || 'replace';
 
-  // 设置操作类型
-  document.getElementById('rule-action').value = rule.action || 'replace';
+      // 内容类型只对响应体规则有效
+      if (rule.changeType === 'response-body') {
+        document.getElementById('rule-content-type').value = rule.contentType || '';
+      }
 
-  // 根据规则类型和操作类型显示相应的内容区域
-  handleActionChange(rule.action, rule.type || 'response');
+      // 根据修改类型和操作类型显示相应的内容区域
+      handleActionChange(rule.action, rule.changeType || 'response-body');
 
-  // 填充具体内容
-  if (rule.type === 'response') {
-    switch (rule.action) {
-      case 'replace':
-        if (rule.replaceWithFile && rule.filePath) {
-          // 文件替换
-          document.querySelector('input[name="replace-type"][value="file"]').checked = true;
-          document.getElementById('rule-file-path').value = rule.filePath || '';
-          document.getElementById('file-replace-group').style.display = 'block';
-          document.getElementById('rule-replace-content').style.display = 'none';
-        } else {
-          // 文本替换
-          document.querySelector('input[name="replace-type"][value="text"]').checked = true;
-          document.getElementById('rule-replace-content').value = rule.replaceContent || '';
-          document.getElementById('file-replace-group').style.display = 'none';
-          document.getElementById('rule-replace-content').style.display = 'block';
+      // 填充具体内容
+      if (rule.changeType === 'response-body') {
+        switch (rule.action) {
+          case 'replace':
+            if (rule.replaceWithFile && rule.filePath) {
+              document.querySelector('input[name="replace-type"][value="file"]').checked = true;
+              document.getElementById('rule-file-path').value = rule.filePath || '';
+              document.getElementById('file-replace-group').style.display = 'block';
+              document.getElementById('rule-replace-content').style.display = 'none';
+            } else {
+              document.querySelector('input[name="replace-type"][value="text"]').checked = true;
+              document.getElementById('rule-replace-content').value = rule.replaceContent || '';
+              document.getElementById('file-replace-group').style.display = 'none';
+              document.getElementById('rule-replace-content').style.display = 'block';
+            }
+            break;
+          case 'modify':
+            fillModifyRules(rule.modifyRules || []);
+            break;
+          case 'inject':
+            document.getElementById('rule-inject-content').value = rule.injectContent || '';
+            document.getElementById('rule-inject-position').value = rule.injectPosition || 'start';
+            document.getElementById('rule-inject-target').value = rule.injectTarget || '';
+            handleInjectPositionChange(rule.injectPosition);
+            break;
         }
-        break;
-      case 'modify':
-        fillModifyRules(rule.modifyRules || []);
-        break;
-      case 'inject':
-        document.getElementById('rule-inject-content').value = rule.injectContent || '';
-        document.getElementById('rule-inject-position').value = rule.injectPosition || 'start';
-        document.getElementById('rule-inject-target').value = rule.injectTarget || '';
-        handleInjectPositionChange(rule.injectPosition);
-        break;
-    }
-  } else if (rule.type === 'request') {
-    switch (rule.action) {
-      case 'modify-headers':
+      } else if (rule.changeType === 'request-headers') {
         fillRequestHeaders(rule.requestHeaders || {});
-        break;
-      case 'modify-url':
+      } else if (rule.changeType === 'request-body') {
         document.getElementById('rule-new-url').value = rule.newUrl || '';
-        break;
-    }
-  } else if (rule.type === 'response-headers') {
-    switch (rule.action) {
-      case 'add-headers':
-      case 'modify-headers':
-        fillResponseHeaders(rule.responseHeaders || {});
-        break;
-      case 'remove-headers':
-        document.getElementById('rule-remove-headers').value = (rule.removeHeaders || []).join(', ');
-        break;
-    }
+      } else if (rule.changeType === 'response-headers') {
+        if (rule.action === 'add-headers' || rule.action === 'modify-headers') {
+          fillResponseHeaders(rule.responseHeaders || {});
+        } else if (rule.action === 'remove-headers') {
+          document.getElementById('rule-remove-headers').value = (rule.removeHeaders || []).join(', ');
+        }
+      }
+      break;
+
+    case 'zip-implant':
+      document.getElementById('rule-zip-implant').value = rule.zipImplant || '';
+      document.getElementById('rule-url-zip').value = rule.urlZip || '';
+      break;
+
+    case 'answer-upload':
+      document.getElementById('rule-url-upload').value = rule.urlUpload || '';
+      document.getElementById('server-locate').value = rule.serverLocate || '';
+      document.getElementById('upload-type').value = rule.uploadType || 'original';
+      break;
+
+    // 兼容旧的规则类型
+    case 'response':
+    case undefined:
+    case null:
+      // 将旧规则转换为新的content-change类型
+      document.getElementById('rule-type').value = 'content-change';
+      document.getElementById('change-type').value = 'response-body';
+      document.getElementById('rule-url-pattern').value = rule.urlPattern || '';
+      document.getElementById('rule-method').value = rule.method || '';
+      document.getElementById('rule-content-type').value = rule.contentType || '';
+      document.getElementById('rule-action').value = rule.action || 'replace';
+
+      handleActionChange(rule.action, 'response-body');
+
+      switch (rule.action) {
+        case 'replace':
+          if (rule.replaceWithFile && rule.filePath) {
+            document.querySelector('input[name="replace-type"][value="file"]').checked = true;
+            document.getElementById('rule-file-path').value = rule.filePath || '';
+            document.getElementById('file-replace-group').style.display = 'block';
+            document.getElementById('rule-replace-content').style.display = 'none';
+          } else {
+            document.querySelector('input[name="replace-type"][value="text"]').checked = true;
+            document.getElementById('rule-replace-content').value = rule.replaceContent || '';
+            document.getElementById('file-replace-group').style.display = 'none';
+            document.getElementById('rule-replace-content').style.display = 'block';
+          }
+          break;
+        case 'modify':
+          fillModifyRules(rule.modifyRules || []);
+          break;
+        case 'inject':
+          document.getElementById('rule-inject-content').value = rule.injectContent || '';
+          document.getElementById('rule-inject-position').value = rule.injectPosition || 'start';
+          document.getElementById('rule-inject-target').value = rule.injectTarget || '';
+          handleInjectPositionChange(rule.injectPosition);
+          break;
+      }
+      break;
   }
 
   // 存储规则ID用于更新
@@ -1938,14 +1989,17 @@ async function fillRuleForm(rule) {
 }
 
 // 清空规则表单
+// 清空规则表单 - 支持新的规则类型
 async function clearRuleForm() {
   document.getElementById('rule-name').value = '';
   document.getElementById('rule-group').value = '';
   document.getElementById('rule-type').value = 'content-change';
+  document.getElementById('rule-enabled').checked = true;
+
+  // 清空content-change相关字段
   document.getElementById('rule-url-pattern').value = '';
   document.getElementById('rule-method').value = '';
   document.getElementById('rule-content-type').value = '';
-  document.getElementById('rule-enabled').checked = true;
   document.getElementById('rule-replace-content').value = '';
   document.getElementById('rule-file-path').value = '';
   document.getElementById('rule-inject-content').value = '';
@@ -1953,6 +2007,15 @@ async function clearRuleForm() {
   document.getElementById('rule-inject-target').value = '';
   document.getElementById('rule-new-url').value = '';
   document.getElementById('rule-remove-headers').value = '';
+
+  // 清空zip-implant相关字段
+  document.getElementById('rule-zip-implant').value = '';
+  document.getElementById('rule-url-zip').value = '';
+
+  // 清空answer-upload相关字段
+  document.getElementById('rule-url-upload').value = '';
+  document.getElementById('server-locate').value = '';
+  document.getElementById('upload-type').value = 'original';
 
   // 重置替换类型为文本
   document.querySelector('input[name="replace-type"][value="text"]').checked = true;
@@ -2052,7 +2115,7 @@ async function handleRuleTypeChange(ruleType) {
   document.getElementById('content-change-group').style.display = 'none';
   document.getElementById('zip-implant-group').style.display = 'none';
   document.getElementById('answer-upload-group').style.display = 'none';
-  document.getElementById(ruleType+'-group').style.display = 'block';
+  document.getElementById(ruleType + '-group').style.display = 'block';
 }
 
 // 添加请求头
@@ -2212,63 +2275,68 @@ async function saveRule() {
 }
 
 // 收集规则数据
+// 收集规则数据 - 支持新的规则类型
 function collectRuleData() {
   const ruleId = document.getElementById('rule-edit-modal').dataset.ruleId;
   const ruleType = document.getElementById('rule-type').value;
+
   const rule = {
     name: document.getElementById('rule-name').value.trim(),
     groupId: document.getElementById('rule-group').value || null,
     type: ruleType,
-    urlPattern: document.getElementById('rule-url-pattern').value.trim(),
-    method: document.getElementById('rule-method').value,
-    action: document.getElementById('rule-action').value,
     enabled: document.getElementById('rule-enabled').checked
   };
-
-  // 内容类型只对响应体规则有效
-  if (ruleType === 'response') {
-    rule.contentType = document.getElementById('rule-content-type').value.trim();
-  }
 
   if (ruleId) {
     rule.id = ruleId;
   }
 
-  // 根据规则类型和操作类型收集具体数据
-  if (ruleType === 'response') {
-    switch (rule.action) {
-      case 'replace':
-        const replaceType = document.querySelector('input[name="replace-type"]:checked').value;
-        if (replaceType === 'file') {
-          rule.replaceWithFile = true;
-          rule.filePath = document.getElementById('rule-file-path').value;
-          rule.replaceContent = ''; // 清空文本内容
-        } else {
-          rule.replaceWithFile = false;
-          rule.filePath = '';
-          rule.replaceContent = document.getElementById('rule-replace-content').value;
+  // 根据规则类型收集不同的数据
+  switch (ruleType) {
+    case 'content-change':
+      rule.changeType = document.getElementById('change-type').value;
+      rule.urlPattern = document.getElementById('rule-url-pattern').value.trim();
+      rule.method = document.getElementById('rule-method').value;
+      rule.action = document.getElementById('rule-action').value;
+
+      // 内容类型只对响应体规则有效
+      if (rule.changeType === 'response-body') {
+        rule.contentType = document.getElementById('rule-content-type').value.trim();
+      }
+
+      // 根据修改类型和操作类型收集具体数据
+      if (rule.changeType === 'response-body') {
+        switch (rule.action) {
+          case 'replace':
+            const replaceType = document.querySelector('input[name="replace-type"]:checked').value;
+            if (replaceType === 'file') {
+              rule.replaceWithFile = true;
+              rule.filePath = document.getElementById('rule-file-path').value;
+              rule.replaceContent = '';
+            } else {
+              rule.replaceWithFile = false;
+              rule.filePath = '';
+              rule.replaceContent = document.getElementById('rule-replace-content').value;
+            }
+            break;
+          case 'modify':
+            rule.modifyRules = [];
+            const modifyItems = document.querySelectorAll('.modify-rule-item');
+            modifyItems.forEach(item => {
+              const find = item.querySelector('.find-input').value.trim();
+              const replace = item.querySelector('.replace-input').value;
+              if (find) {
+                rule.modifyRules.push({ find, replace });
+              }
+            });
+            break;
+          case 'inject':
+            rule.injectContent = document.getElementById('rule-inject-content').value;
+            rule.injectPosition = document.getElementById('rule-inject-position').value;
+            rule.injectTarget = document.getElementById('rule-inject-target').value.trim();
+            break;
         }
-        break;
-      case 'modify':
-        rule.modifyRules = [];
-        const modifyItems = document.querySelectorAll('.modify-rule-item');
-        modifyItems.forEach(item => {
-          const find = item.querySelector('.find-input').value.trim();
-          const replace = item.querySelector('.replace-input').value;
-          if (find) {
-            rule.modifyRules.push({ find, replace });
-          }
-        });
-        break;
-      case 'inject':
-        rule.injectContent = document.getElementById('rule-inject-content').value;
-        rule.injectPosition = document.getElementById('rule-inject-position').value;
-        rule.injectTarget = document.getElementById('rule-inject-target').value.trim();
-        break;
-    }
-  } else if (ruleType === 'request') {
-    switch (rule.action) {
-      case 'modify-headers':
+      } else if (rule.changeType === 'request-headers') {
         rule.requestHeaders = {};
         const requestHeaderItems = document.querySelectorAll('#request-headers-group .header-item');
         requestHeaderItems.forEach(item => {
@@ -2278,45 +2346,196 @@ function collectRuleData() {
             rule.requestHeaders[name] = value;
           }
         });
-        break;
-      case 'modify-url':
+      } else if (rule.changeType === 'request-body') {
         rule.newUrl = document.getElementById('rule-new-url').value.trim();
-        break;
-      case 'block':
-        // 阻止请求不需要额外数据
-        break;
-    }
-  } else if (ruleType === 'response-headers') {
-    switch (rule.action) {
-      case 'add-headers':
-      case 'modify-headers':
-        rule.responseHeaders = {};
-        const responseHeaderItems = document.querySelectorAll('#response-headers-group .header-item');
-        responseHeaderItems.forEach(item => {
-          const name = item.querySelector('.header-name-input').value.trim();
-          const value = item.querySelector('.header-value-input').value.trim();
-          if (name) {
-            rule.responseHeaders[name] = value;
-          }
-        });
-        break;
-      case 'remove-headers':
-        const removeHeadersValue = document.getElementById('rule-remove-headers').value.trim();
-        rule.removeHeaders = removeHeadersValue ? removeHeadersValue.split(',').map(h => h.trim()) : [];
-        break;
-    }
+      } else if (rule.changeType === 'response-headers') {
+        if (rule.action === 'add-headers' || rule.action === 'modify-headers') {
+          rule.responseHeaders = {};
+          const responseHeaderItems = document.querySelectorAll('#response-headers-group .header-item');
+          responseHeaderItems.forEach(item => {
+            const name = item.querySelector('.header-name-input').value.trim();
+            const value = item.querySelector('.header-value-input').value.trim();
+            if (name) {
+              rule.responseHeaders[name] = value;
+            }
+          });
+        } else if (rule.action === 'remove-headers') {
+          const removeHeadersValue = document.getElementById('rule-remove-headers').value.trim();
+          rule.removeHeaders = removeHeadersValue ? removeHeadersValue.split(',').map(h => h.trim()) : [];
+        }
+      }
+      break;
+
+    case 'zip-implant':
+      rule.zipImplant = document.getElementById('rule-zip-implant').value.trim();
+      rule.urlZip = document.getElementById('rule-url-zip').value.trim();
+      break;
+
+    case 'answer-upload':
+      rule.urlUpload = document.getElementById('rule-url-upload').value.trim();
+      rule.serverLocate = document.getElementById('server-locate').value.trim();
+      rule.uploadType = document.getElementById('upload-type').value;
+      break;
   }
 
   return rule;
 }
 
 // 验证规则数据
+// 验证规则数据 - 支持新的规则类型
 function validateRule(rule) {
   if (!rule.name) {
     showToast('请输入规则名称', 'error');
     return false;
   }
 
+  // 根据规则类型进行不同的验证
+  switch (rule.type) {
+    case 'content-change':
+      return validateContentChangeRule(rule);
+    case 'zip-implant':
+      return validateZipImplantRule(rule);
+    case 'answer-upload':
+      return validateAnswerUploadRule(rule);
+    // 兼容旧的规则类型
+    case 'response':
+    case 'request':
+    case 'response-headers':
+      return validateLegacyRule(rule);
+    default:
+      showToast('未知的规则类型', 'error');
+      return false;
+  }
+}
+
+// 验证内容修改规则
+function validateContentChangeRule(rule) {
+  // 验证URL模式是否为有效正则表达式
+  if (rule.urlPattern) {
+    try {
+      new RegExp(rule.urlPattern);
+    } catch (e) {
+      showToast('URL匹配模式不是有效的正则表达式', 'error');
+      return false;
+    }
+  }
+
+  if (!rule.changeType) {
+    showToast('请选择修改类型', 'error');
+    return false;
+  }
+
+  if (!rule.action) {
+    showToast('请选择操作类型', 'error');
+    return false;
+  }
+
+  // 根据修改类型和操作类型验证具体内容
+  if (rule.changeType === 'response-body') {
+    switch (rule.action) {
+      case 'replace':
+        if (rule.replaceWithFile) {
+          if (!rule.filePath) {
+            showToast('请选择替换文件', 'error');
+            return false;
+          }
+        } else {
+          if (!rule.replaceContent && rule.replaceContent !== '') {
+            showToast('请输入替换内容', 'error');
+            return false;
+          }
+        }
+        break;
+      case 'modify':
+        if (!rule.modifyRules || rule.modifyRules.length === 0) {
+          showToast('请至少添加一条修改规则', 'error');
+          return false;
+        }
+        // 验证正则表达式
+        for (const modifyRule of rule.modifyRules) {
+          try {
+            new RegExp(modifyRule.find);
+          } catch (e) {
+            showToast(`修改规则中的查找内容不是有效的正则表达式: ${modifyRule.find}`, 'error');
+            return false;
+          }
+        }
+        break;
+      case 'inject':
+        if (!rule.injectContent) {
+          showToast('请输入注入内容', 'error');
+          return false;
+        }
+        if ((rule.injectPosition === 'before' || rule.injectPosition === 'after') && !rule.injectTarget) {
+          showToast('请输入目标内容', 'error');
+          return false;
+        }
+        break;
+    }
+  } else if (rule.changeType === 'request-headers') {
+    if (!rule.requestHeaders || Object.keys(rule.requestHeaders).length === 0) {
+      showToast('请至少添加一个请求头', 'error');
+      return false;
+    }
+  } else if (rule.changeType === 'request-body') {
+    if (!rule.newUrl) {
+      showToast('请输入重定向URL', 'error');
+      return false;
+    }
+  } else if (rule.changeType === 'response-headers') {
+    if (rule.action === 'add-headers' || rule.action === 'modify-headers') {
+      if (!rule.responseHeaders || Object.keys(rule.responseHeaders).length === 0) {
+        showToast('请至少添加一个响应头', 'error');
+        return false;
+      }
+    } else if (rule.action === 'remove-headers') {
+      if (!rule.removeHeaders || rule.removeHeaders.length === 0) {
+        showToast('请输入要删除的响应头', 'error');
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+// 验证ZIP植入规则
+function validateZipImplantRule(rule) {
+  if (!rule.zipImplant) {
+    showToast('请选择要植入的ZIP文件', 'error');
+    return false;
+  }
+
+  if (!rule.urlZip) {
+    showToast('请输入植入请求URL匹配部分', 'error');
+    return false;
+  }
+
+  return true;
+}
+
+// 验证答案上传规则
+function validateAnswerUploadRule(rule) {
+  if (!rule.urlUpload) {
+    showToast('请输入上传URL匹配部分', 'error');
+    return false;
+  }
+
+  if (!rule.serverLocate) {
+    showToast('请输入服务器位置', 'error');
+    return false;
+  }
+
+  if (!rule.uploadType) {
+    showToast('请选择上传类型', 'error');
+    return false;
+  }
+
+  return true;
+}
+
+// 验证旧版规则（兼容性）
+function validateLegacyRule(rule) {
   // 验证URL模式是否为有效正则表达式
   if (rule.urlPattern) {
     try {
@@ -2388,9 +2607,6 @@ function validateRule(rule) {
           showToast('重定向URL格式不正确', 'error');
           return false;
         }
-        break;
-      case 'block':
-        // 阻止请求不需要验证额外内容
         break;
     }
   } else if (rule.type === 'response-headers') {
@@ -2597,7 +2813,7 @@ function handleReplaceTypeChange() {
   const replaceType = document.querySelector('input[name="replace-type"]:checked').value;
   const textArea = document.getElementById('rule-replace-content');
   const fileGroup = document.getElementById('file-replace-group');
-  
+
   if (replaceType === 'file') {
     textArea.style.display = 'none';
     fileGroup.style.display = 'block';
