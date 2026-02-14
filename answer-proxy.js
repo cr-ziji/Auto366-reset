@@ -106,7 +106,6 @@ class AnswerProxy {
       if (fs.existsSync(rulesFile)) {
         const rulesData = fs.readFileSync(rulesFile, 'utf-8');
         this.responseRules = JSON.parse(rulesData);
-        console.log(`已加载 ${this.responseRules.length} 条响应体更改规则`);
       } else {
         this.responseRules = [];
       }
@@ -126,7 +125,6 @@ class AnswerProxy {
       const rulesToSave = rules !== null ? rules : this.responseRules;
 
       fs.writeFileSync(rulesFile, JSON.stringify(rulesToSave, null, 2), 'utf-8');
-      console.log(`已保存 ${rulesToSave.length} 条响应体更改规则`);
 
       // 如果传入了规则数组，则更新当前规则
       if (rules !== null) {
@@ -142,9 +140,6 @@ class AnswerProxy {
 
   // 获取所有规则
   getResponseRules() {
-    console.log('AnswerProxy.getResponseRules() 被调用');
-    console.log('当前规则数量:', this.responseRules ? this.responseRules.length : 'undefined');
-    console.log('规则数据:', this.responseRules);
     return this.responseRules || [];
   }
 
@@ -327,14 +322,14 @@ class AnswerProxy {
         })
         ctx.onRequestEnd((ctx, callback) => {
           let body = Buffer.concat(requestBody).toString()
-          if (ctx.clientToProxyRequest.headers['content-type'].includes('application/json')) {
+          if (ctx.clientToProxyRequest.headers['content-type'] && ctx.clientToProxyRequest.headers['content-type'].includes('application/json')) {
             try {
               body = JSON.stringify(JSON.parse(body), null, 2);
             } catch (error) {
               console.error('解析请求体失败:', error)
             }
           }
-          else if (ctx.clientToProxyRequest.headers['content-type'].includes('application/x-www-form-urlencoded')) {
+          else if (ctx.clientToProxyRequest.headers['content-type'] && ctx.clientToProxyRequest.headers['content-type'].includes('application/x-www-form-urlencoded')) {
             try {
               const params = new URLSearchParams(body);
               const result = Object.fromEntries(params.entries());

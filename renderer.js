@@ -1334,18 +1334,6 @@ function initRuleEditForm() {
     console.error('未找到 save-rule-btn 元素');
   }
 
-  // 测试规则按钮
-  const testRuleBtn = document.getElementById('test-rule-btn');
-  if (testRuleBtn) {
-    testRuleBtn.addEventListener('click', () => {
-      console.log('测试规则按钮被点击');
-      testRule();
-    });
-    console.log('测试规则按钮事件监听器已绑定');
-  } else {
-    console.error('未找到 test-rule-btn 元素');
-  }
-
   // 取消按钮
   const cancelRuleBtn = document.getElementById('cancel-rule-btn');
   if (cancelRuleBtn) {
@@ -1491,18 +1479,6 @@ function createRuleItemHTML(rule) {
                     <div class="rule-detail-item">
                         <span>类型:</span>
                         <span>${getRuleTypeText(rule.type || 'response')}</span>
-                    </div>
-                    <div class="rule-detail-item">
-                        <span>URL:</span>
-                        <span>${rule.urlPattern || '所有'}</span>
-                    </div>
-                    <div class="rule-detail-item">
-                        <span>方法:</span>
-                        <span>${rule.method || '所有'}</span>
-                    </div>
-                    <div class="rule-detail-item">
-                        <span>操作:</span>
-                        <span>${getActionText(rule.action, rule.type)}</span>
                     </div>
                     <div class="rule-detail-item">
                         <span class="rule-status ${rule.enabled ? 'enabled' : 'disabled'}">
@@ -2584,21 +2560,6 @@ function validateLegacyRule(rule) {
   }
 
   return true;
-}
-
-// 测试规则
-function testRule() {
-  console.log('testRule 函数被调用');
-  const rule = collectRuleData();
-  console.log('收集到的规则数据:', rule);
-  if (!validateRule(rule)) {
-    console.log('规则验证失败');
-    return;
-  }
-
-  // 这里可以实现规则测试逻辑
-  console.log('规则验证通过');
-  showToast('规则验证通过', 'success');
 }
 
 // HTML转义

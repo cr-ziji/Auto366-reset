@@ -212,9 +212,7 @@ ipcMain.on('open-implant-zip-choosing', async () => {
 // 响应体更改规则相关IPC处理
 ipcMain.handle('get-response-rules', () => {
   try {
-    console.log('收到 get-response-rules 请求');
     const rules = answerProxy.getResponseRules();
-    console.log('返回规则数据:', rules);
     return rules;
   } catch (error) {
     console.error('获取响应规则失败:', error);
