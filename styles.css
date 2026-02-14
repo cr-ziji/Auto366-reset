@@ -1947,3 +1947,7 @@ button:disabled {
 #pk-injection-log .log-entry.info {
     color: #17a2b8;
 }
+
+.header-type-select {
+    width: auto !important;
+}

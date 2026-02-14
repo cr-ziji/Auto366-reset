@@ -2095,7 +2095,7 @@ function handleActionChange(action, ruleType) {
         injectGroup.style.display = 'block';
         break;
     }
-  } else if (ruleType === 'request') {
+  } else if (ruleType === 'request-headers') {
     switch (action) {
       case 'modify-headers':
         requestHeadersGroup.style.display = 'block';

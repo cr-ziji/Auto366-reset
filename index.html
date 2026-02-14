@@ -250,13 +250,12 @@
                     <div class="form-group">
                         <label for="rule-action">操作类型:</label>
                         <select id="rule-action">
-                            <option value="replace">替换响应体</option>
-                            <option value="modify">修改响应体</option>
-                            <option value="inject">注入内容</option>
+                            <option value="replace">替换内容</option>
+                            <option value="modify">修改内容</option>
                         </select>
                     </div>
 
-                    <!-- 响应体修改相关字段 -->
+                    <!-- 身体修改相关字段 -->
                     <div class="form-group" id="replace-content-group">
                         <label for="rule-replace-content">替换内容:</label>
                         <div class="replace-options">
@@ -303,7 +302,7 @@
                         </div>
                     </div>
 
-                    <!-- 请求修改相关字段 -->
+                    <!-- 无用，将删除 -->
                     <div class="form-group" id="request-headers-group" style="display: none;">
                         <label>请求头修改:</label>
                         <div class="headers-container">
@@ -321,11 +320,16 @@
                         <small>请求将被重定向到此URL</small>
                     </div>
 
-                    <!-- 响应头修改相关字段 -->
-                    <div class="form-group" id="response-headers-group" style="display: none;">
+                    <!-- 头部修改相关字段 -->
+                    <div class="form-group" id="headers-group" style="display: none;">
                         <label>响应头修改:</label>
                         <div class="headers-container">
                             <div class="header-item">
+                                <select class="header-type-select">
+                                    <option>增加</option>
+                                    <option>修改</option>
+                                    <option>删除</option>
+                                </select>
                                 <input type="text" placeholder="响应头名称" class="header-name-input">
                                 <input type="text" placeholder="响应头值" class="header-value-input">
                                 <button type="button" class="remove-header">删除</button>
@@ -333,6 +337,8 @@
                         </div>
                         <button type="button" id="add-response-header">添加响应头</button>
                     </div>
+
+                    <!-- 无用，将删除 -->
                     <div class="form-group" id="remove-headers-group" style="display: none;">
                         <label for="rule-remove-headers">删除响应头:</label>
                         <input type="text" id="rule-remove-headers" placeholder="要删除的响应头名称，多个用逗号分隔">
@@ -366,7 +372,7 @@
                     <div class="form-group">
                         <label for="upload-type">上传类型:</label>
                         <select id="upload-type">
-                            <option value="original">响应体</option>
+                            <option value="original">原始响应体</option>
                             <option value="resolved">尝试解析答案后的json</option>
                         </select>
                         <small>上传什么类型</small>
