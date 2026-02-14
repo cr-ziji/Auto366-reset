@@ -1284,6 +1284,22 @@ function initRuleEditForm() {
     console.error('未找到 rule-type 元素');
   }
 
+  // 规则类型变化事件
+  const changeTypeSelect = document.getElementById('change-type');
+  if (changeTypeSelect) {
+    changeTypeSelect.addEventListener('change', (e) => {
+      console.log('更改类型变化:', e.target.value);
+      if (e.target.value === 'request-headers' || e.target.value === 'response-headers'){
+        document.getElementById('content-type-group').style.display = 'none';
+      }
+      else {
+        document.getElementById('content-type-group').style.display = 'block';
+      }
+    });
+  } else {
+    console.error('未找到 change-type 元素');
+  }
+
   // 操作类型变化事件
   const ruleActionSelect = document.getElementById('rule-action');
   if (ruleActionSelect) {
@@ -1505,30 +1521,6 @@ function getRuleTypeText(type) {
   return typeMap[type] || type;
 }
 
-// 获取操作类型文本
-function getActionText(action, ruleType = 'response') {
-  const actionMaps = {
-    'response': {
-      'replace': '替换响应体',
-      'modify': '修改响应体',
-      'inject': '注入内容'
-    },
-    'request': {
-      'modify-headers': '修改请求头',
-      'modify-url': '重定向URL',
-      'block': '阻止请求'
-    },
-    'response-headers': {
-      'add-headers': '添加响应头',
-      'modify-headers': '修改响应头',
-      'remove-headers': '删除响应头'
-    }
-  };
-
-  const actionMap = actionMaps[ruleType] || actionMaps['response'];
-  return actionMap[action] || action;
-}
-
 // 切换规则启用状态
 async function toggleRule(ruleId, enabled) {
   try {
@@ -1649,31 +1641,6 @@ async function deleteGroup(groupId) {
   }
 }
 
-async function toggleGroup(groupId, enabled) {
-  try {
-    const rules = await window.electronAPI.getResponseRules();
-    const group = rules.find(r => r.id === groupId);
-
-    if (group) {
-      group.enabled = !group.enabled;
-
-      // 切换分组内所有规则的启用状态
-      rules.forEach(rule => {
-        if (rule.groupId === groupId) {
-          rule.enabled = group.enabled;
-        }
-      });
-
-      await window.electronAPI.saveResponseRules(rules);
-      loadResponseRules();
-      showToast(`分组已${group.enabled ? '启用' : '禁用'}`, 'success');
-    }
-  } catch (error) {
-    console.error('切换分组状态失败:', error);
-    showToast('切换分组状态失败', 'error');
-  }
-}
-
 function toggleGroup(groupId) {
   const groupContent = document.querySelector(`[data-group-content="${groupId}"]`);
   const toggleIcon = document.querySelector(`[data-group-id="${groupId}"] .rules-group-toggle`);
@@ -1702,7 +1669,7 @@ async function toggleGroupRules(groupId, enabled) {
     }
 
     await window.electronAPI.saveResponseRules(rules);
-    loadResponseRules();
+    await loadResponseRules();
     showToast(`分组内规则已${!enabled ? '启用' : '禁用'}`, 'success');
   } catch (error) {
     console.error('切换分组规则状态失败:', error);
@@ -1863,6 +1830,13 @@ async function fillRuleForm(rule) {
       // 根据修改类型和操作类型显示相应的内容区域
       handleActionChange(rule.action, rule.changeType);
 
+      if (rule.changeType === 'request-headers' || rule.changeType === 'response-headers'){
+        document.getElementById('content-type-group').style.display = 'none';
+      }
+      else {
+        document.getElementById('content-type-group').style.display = 'block';
+      }
+
       // 填充具体内容
       if (rule.changeType === 'request-headers') {
         if (rule.action === 'add-headers' || rule.action === 'modify-headers') {
@@ -1940,6 +1914,7 @@ async function clearRuleForm() {
   document.getElementById('rule-inject-target').value = '';
   document.getElementById('rule-new-url').value = '';
   document.getElementById('rule-remove-headers').value = '';
+  document.getElementById('content-type-group').style.display = 'none';
 
   // 清空zip-implant相关字段
   document.getElementById('rule-zip-implant').value = '';
