@@ -331,7 +331,7 @@ class AnswerProxy {
             try {
               body = JSON.stringify(JSON.parse(body), null, 2);
             } catch (error) {
-              console.error('解析响应体失败:', error)
+              console.error('解析请求体失败:', error)
             }
           }
           else if (ctx.clientToProxyRequest.headers['content-type'].includes('application/x-www-form-urlencoded')) {
@@ -340,7 +340,7 @@ class AnswerProxy {
               const result = Object.fromEntries(params.entries());
               body = JSON.stringify(result, null, 2);
             } catch (error) {
-              console.error('解析响应体失败:', error)
+              console.error('解析请求体失败:', error)
             }
           }
           else {
