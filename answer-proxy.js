@@ -199,80 +199,29 @@ class AnswerProxy {
     }
   }
 
-  // 应用请求修改规则 - 简化版本，仅用于兼容性
-  applyRequestRules(url, method, requestOptions, headers) {
-    // 简化版本：不实际应用规则，只返回原始内容
-    console.log(`请求规则检查: 共有 ${this.responseRules.length} 条规则，但未实际应用`);
-
-    return {
-      modified: false,
-      requestOptions: requestOptions,
-      headers: headers,
-      appliedRules: []
-    };
-  }
-
-  // 应用响应头修改规则 - 简化版本，仅用于兼容性
-  applyResponseHeaderRules(url, method, responseHeaders) {
-    // 简化版本：不实际应用规则，只返回原始内容
-    console.log(`响应头规则检查: 共有 ${this.responseRules.length} 条规则，但未实际应用`);
-
-    return {
-      modified: false,
-      headers: {},
-      appliedRules: []
-    };
-  }
-
-  // 检查URL是否匹配规则
-  matchesRule(rule, url, method, contentType) {
+  // 应用请求修改规则
+  applyRequestHeadRules(url, method, headers) {
     try {
-      // 检查是否启用
-      if (!rule.enabled) return false;
+      for (const rule of this.responseRules) {
+        if (!rule.enabled) continue;
+        if (rule.type === 'content-change'){
 
-      // 检查规则类型（如果指定了类型）
-      if (rule.type && !['response', 'request', 'response-headers'].includes(rule.type)) {
-        return false;
-      }
+        }
+        else if (rule.type === 'zip-implant'){
 
-      // 检查URL模式
-      if (rule.urlPattern && rule.urlPattern.trim()) {
-        const regex = new RegExp(rule.urlPattern, 'i');
-        if (!regex.test(url)) return false;
-      }
+        }
+        else if (rule.type === 'answer-upload'){
 
-      // 检查请求方法
-      if (rule.method && rule.method.trim() && rule.method !== method) {
-        return false;
-      }
-
-      // 检查内容类型（仅对响应体规则有效）
-      if (rule.type === 'response' && rule.contentType && rule.contentType.trim()) {
-        if (!contentType || !contentType.includes(rule.contentType)) {
-          return false;
+        }
+        else {
+          console.log('未知规则类型:', rule.type);
+          return {};
         }
       }
-
-      return true;
     } catch (error) {
-      console.error('规则匹配检查失败:', error);
-      return false;
+      console.error('应用请求头修改规则失败:', error);
+      return {};
     }
-  }
-
-  // 应用响应体更改规则 - 简化版本，仅用于兼容性
-  applyResponseRules(url, method, contentType, responseBody, responseBuffer) {
-    // 简化版本：不实际应用规则，只返回原始内容
-    // 这样可以保持接口兼容性，但不会实际修改响应
-    console.log(`规则检查: 共有 ${this.responseRules.length} 条规则，但未实际应用`);
-
-    return {
-      modified: false,
-      body: responseBody,
-      buffer: responseBuffer,
-      isBinaryModified: false,
-      appliedRules: []
-    };
   }
 
   // 响应体解压缩工具函数

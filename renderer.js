@@ -1289,7 +1289,7 @@ function initRuleEditForm() {
   if (ruleActionSelect) {
     ruleActionSelect.addEventListener('change', (e) => {
       console.log('操作类型变化:', e.target.value);
-      const ruleType = document.getElementById('rule-type').value;
+      const ruleType = document.getElementById('change-type').value;
       handleActionChange(e.target.value, ruleType);
     });
   } else {
@@ -1520,16 +1520,11 @@ function createRuleItemHTML(rule) {
 }
 
 // 获取规则类型文本
-// 获取规则类型文本
 function getRuleTypeText(type) {
   const typeMap = {
     'content-change': '网络请求/响应修改',
     'zip-implant': 'ZIP文件植入',
     'answer-upload': '答案上传到本地服务器',
-    // 兼容旧的规则类型
-    'response': '响应体修改',
-    'request': '请求修改',
-    'response-headers': '响应头修改'
   };
   return typeMap[type] || type;
 }
@@ -1867,7 +1862,6 @@ async function loadGroupOptions() {
 }
 
 // 填充规则表单
-// 填充规则表单 - 支持新的规则类型
 async function fillRuleForm(rule) {
   document.getElementById('rule-name').value = rule.name || '';
   document.getElementById('rule-group').value = rule.groupId || '';
@@ -1886,15 +1880,29 @@ async function fillRuleForm(rule) {
       document.getElementById('rule-action').value = rule.action || 'replace';
 
       // 内容类型只对响应体规则有效
-      if (rule.changeType === 'response-body') {
+      if (rule.changeType === 'response-body' || rule.changeType === 'request-body') {
         document.getElementById('rule-content-type').value = rule.contentType || '';
       }
 
       // 根据修改类型和操作类型显示相应的内容区域
-      handleActionChange(rule.action, rule.changeType || 'response-body');
+      handleActionChange(rule.action, rule.changeType);
 
       // 填充具体内容
-      if (rule.changeType === 'response-body') {
+      if (rule.changeType === 'request-headers') {
+        if (rule.action === 'add-headers' || rule.action === 'modify-headers') {
+          fillRequestHeaders(rule.requestHeaders || {});
+        } else if (rule.action === 'remove-headers') {
+          document.getElementById('rule-remove-headers').value = (rule.removeHeaders || []).join(', ');
+        }
+      } else if (rule.changeType === 'request-body') {
+        document.getElementById('rule-new-url').value = rule.newUrl || '';
+      } else if (rule.changeType === 'response-headers') {
+        if (rule.action === 'add-headers' || rule.action === 'modify-headers') {
+          fillResponseHeaders(rule.responseHeaders || {});
+        } else if (rule.action === 'remove-headers') {
+          document.getElementById('rule-remove-headers').value = (rule.removeHeaders || []).join(', ');
+        }
+      } else if (rule.changeType === 'response-body') {
         switch (rule.action) {
           case 'replace':
             if (rule.replaceWithFile && rule.filePath) {
@@ -1919,16 +1927,6 @@ async function fillRuleForm(rule) {
             handleInjectPositionChange(rule.injectPosition);
             break;
         }
-      } else if (rule.changeType === 'request-headers') {
-        fillRequestHeaders(rule.requestHeaders || {});
-      } else if (rule.changeType === 'request-body') {
-        document.getElementById('rule-new-url').value = rule.newUrl || '';
-      } else if (rule.changeType === 'response-headers') {
-        if (rule.action === 'add-headers' || rule.action === 'modify-headers') {
-          fillResponseHeaders(rule.responseHeaders || {});
-        } else if (rule.action === 'remove-headers') {
-          document.getElementById('rule-remove-headers').value = (rule.removeHeaders || []).join(', ');
-        }
       }
       break;
 
@@ -1942,46 +1940,6 @@ async function fillRuleForm(rule) {
       document.getElementById('server-locate').value = rule.serverLocate || '';
       document.getElementById('upload-type').value = rule.uploadType || 'original';
       break;
-
-    // 兼容旧的规则类型
-    case 'response':
-    case undefined:
-    case null:
-      // 将旧规则转换为新的content-change类型
-      document.getElementById('rule-type').value = 'content-change';
-      document.getElementById('change-type').value = 'response-body';
-      document.getElementById('rule-url-pattern').value = rule.urlPattern || '';
-      document.getElementById('rule-method').value = rule.method || '';
-      document.getElementById('rule-content-type').value = rule.contentType || '';
-      document.getElementById('rule-action').value = rule.action || 'replace';
-
-      handleActionChange(rule.action, 'response-body');
-
-      switch (rule.action) {
-        case 'replace':
-          if (rule.replaceWithFile && rule.filePath) {
-            document.querySelector('input[name="replace-type"][value="file"]').checked = true;
-            document.getElementById('rule-file-path').value = rule.filePath || '';
-            document.getElementById('file-replace-group').style.display = 'block';
-            document.getElementById('rule-replace-content').style.display = 'none';
-          } else {
-            document.querySelector('input[name="replace-type"][value="text"]').checked = true;
-            document.getElementById('rule-replace-content').value = rule.replaceContent || '';
-            document.getElementById('file-replace-group').style.display = 'none';
-            document.getElementById('rule-replace-content').style.display = 'block';
-          }
-          break;
-        case 'modify':
-          fillModifyRules(rule.modifyRules || []);
-          break;
-        case 'inject':
-          document.getElementById('rule-inject-content').value = rule.injectContent || '';
-          document.getElementById('rule-inject-position').value = rule.injectPosition || 'start';
-          document.getElementById('rule-inject-target').value = rule.injectTarget || '';
-          handleInjectPositionChange(rule.injectPosition);
-          break;
-      }
-      break;
   }
 
   // 存储规则ID用于更新
@@ -1989,7 +1947,6 @@ async function fillRuleForm(rule) {
 }
 
 // 清空规则表单
-// 清空规则表单 - 支持新的规则类型
 async function clearRuleForm() {
   document.getElementById('rule-name').value = '';
   document.getElementById('rule-group').value = '';
@@ -2156,6 +2113,7 @@ function removeHeader(button) {
 
 // 处理操作类型变化
 function handleActionChange(action, ruleType) {
+  console.log(action, ruleType);
   const replaceGroup = document.getElementById('replace-content-group');
   const modifyGroup = document.getElementById('modify-rules-group');
   const injectGroup = document.getElementById('inject-content-group');
@@ -2174,7 +2132,7 @@ function handleActionChange(action, ruleType) {
   removeHeadersGroup.style.display = 'none';
 
   // 根据规则类型和操作类型显示对应的组
-  if (ruleType === 'response') {
+  if (ruleType === 'response-body') {
     switch (action) {
       case 'replace':
         replaceGroup.style.display = 'block';
@@ -2275,7 +2233,6 @@ async function saveRule() {
 }
 
 // 收集规则数据
-// 收集规则数据 - 支持新的规则类型
 function collectRuleData() {
   const ruleId = document.getElementById('rule-edit-modal').dataset.ruleId;
   const ruleType = document.getElementById('rule-type').value;
@@ -2300,7 +2257,7 @@ function collectRuleData() {
       rule.action = document.getElementById('rule-action').value;
 
       // 内容类型只对响应体规则有效
-      if (rule.changeType === 'response-body') {
+      if (rule.changeType === 'response-body' || rule.changeType === 'request-body') {
         rule.contentType = document.getElementById('rule-content-type').value.trim();
       }
 
@@ -2382,7 +2339,6 @@ function collectRuleData() {
 }
 
 // 验证规则数据
-// 验证规则数据 - 支持新的规则类型
 function validateRule(rule) {
   if (!rule.name) {
     showToast('请输入规则名称', 'error');
