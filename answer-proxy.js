@@ -326,7 +326,27 @@ class AnswerProxy {
           return callback(null, chunk);
         })
         ctx.onRequestEnd((ctx, callback) => {
-          requestInfo.requestBody = Buffer.concat(requestBody).toString()
+          let body = Buffer.concat(requestBody).toString()
+          if (ctx.clientToProxyRequest.headers['content-type'].includes('application/json')) {
+            try {
+              body = JSON.stringify(JSON.parse(body), null, 2);
+            } catch (error) {
+              console.error('解析响应体失败:', error)
+            }
+          }
+          else if (ctx.clientToProxyRequest.headers['content-type'].includes('application/x-www-form-urlencoded')) {
+            try {
+              const params = new URLSearchParams(body);
+              const result = Object.fromEntries(params.entries());
+              body = JSON.stringify(result, null, 2);
+            } catch (error) {
+              console.error('解析响应体失败:', error)
+            }
+          }
+          else {
+            console.log('未知请求体类型', ctx.clientToProxyRequest.headers['content-type'])
+          }
+          requestInfo.requestBody = body
           return callback();
         })
         ctx.onResponse((ctx, callback) => {
