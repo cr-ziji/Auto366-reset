@@ -194,27 +194,95 @@ class AnswerProxy {
     }
   }
 
-  // 应用请求修改规则
-  applyRequestHeadRules(url, method, headers) {
+  // 获取需要应用的规则
+  haveRules(url, type) {
+    let l = [];
     try {
       for (const rule of this.responseRules) {
         if (!rule.enabled) continue;
+        if (rule.isGroup) continue;
         if (rule.type === 'content-change'){
-
+          if (!url.includes(rule.urlPattern)) continue;
+          if (type !== rule.changeType) continue;
+          l.push(1)
         }
-        else if (rule.type === 'zip-implant'){
-
+        if (type === 'response-body' && rule.type === 'zip-implant'){
+          if (!fs.existsSync(rule.zipImplant)){
+            console.error('注入zip不存在');
+            continue;
+          }
+          if (url.includes('http://fs.up366.cn/fileinfo/') && url.includes(rule.urlZip)){
+            l.push(2)
+          }
+          else if (url.includes('http://fs-v2.up366.cn/download/') && url.includes(rule.urlZip)){
+            l.push(2)
+          }
         }
-        else if (rule.type === 'answer-upload'){
-
-        }
-        else {
-          console.log('未知规则类型:', rule.type);
-          return {};
+        if (type === 'response-body' && rule.type === 'answer-upload'){
+          if (!url.includes(rule.urlUpload)) continue;
+          l.push(3)
         }
       }
     } catch (error) {
-      console.error('应用请求头修改规则失败:', error);
+      console.error('获取需要应用的规则失败:', error);
+      return [];
+    }
+    return l;
+  }
+
+  // 应用zip注入规则
+  applyZipImplantRules(url, responseBody) {
+    try {
+      for (const rule of this.responseRules) {
+        if (!rule.enabled) continue;
+        if (rule.isGroup) continue;
+        if (rule.type === 'zip-implant'){
+          if (!fs.existsSync(rule.zipImplant)){
+            console.error('注入zip不存在');
+            continue;
+          }
+          if (url.includes('http://fs.up366.cn/fileinfo/') && url.includes(rule.urlZip)){
+            const buffer = fs.readFileSync(rule.zipImplant);
+            const md5 = crypto.createHash('md5').update(buffer).digest('hex');
+            responseBody = responseBody.toString();
+            responseBody = responseBody.replace(/"filemd5":"[^"]+"/g, `"filemd5":"${md5}"`);
+            responseBody = responseBody.replace(/"objectMD5":"[^"]+"/g, `"objectMD5":"${md5}"`);
+            return Buffer.from(responseBody);
+          }
+          else if (url.includes('http://fs-v2.up366.cn/download/') && url.includes(rule.urlZip)){
+            return fs.readFileSync(rule.zipImplant);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('应用zip注入规则失败:', error);
+      return {};
+    }
+  }
+
+  // 应用答案上传规则
+  applyAnswerUploadRules(url, responseBody, extracted_answers) {
+    try {
+      for (const rule of this.responseRules) {
+        if (!rule.enabled) continue;
+        if (rule.isGroup) continue;
+        if (rule.type === 'answer-upload'){
+          if (!url.includes(rule.urlUpload)) continue;
+          if (rule.uploadType === 'original'){
+            try {
+              this.serverDatas[rule.serverLocate] = JSON.parse(responseBody.toString());
+            }
+            catch (error){
+              this.serverDatas[rule.serverLocate] = responseBody;
+            }
+          }
+          else {
+            this.serverDatas[rule.serverLocate] = extracted_answers;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('应用答案上传规则失败:', error);
       return {};
     }
   }
@@ -338,13 +406,18 @@ class AnswerProxy {
               console.error('解析请求体失败:', error)
             }
           }
-          else {
+          else if (ctx.clientToProxyRequest.headers['content-type']) {
             console.log('未知请求体类型', ctx.clientToProxyRequest.headers['content-type'])
           }
           requestInfo.requestBody = body
           return callback();
         })
+        let responseBodyRules = this.haveRules(fullUrl, 'response-body');
         ctx.onResponse((ctx, callback) => {
+          if (responseBodyRules.includes(2) && ctx.serverToProxyResponse.statusCode !== 200){
+            ctx.serverToProxyResponse.statusCode = 200;
+            ctx.serverToProxyResponse.headers['content-type'] = 'application/octet-stream'
+          }
           requestInfo.statusCode = ctx.serverToProxyResponse.statusCode;
           requestInfo.statusMessage = ctx.serverToProxyResponse.statusMessage;
           requestInfo.responseHeaders = ctx.serverToProxyResponse.headers;
@@ -355,10 +428,15 @@ class AnswerProxy {
         })
         ctx.onResponseData((ctx, chunk, callback) => {
           responseBody.push(chunk)
-          return callback(null, chunk);
+          if (responseBodyRules.includes(2)) return callback(null, Buffer.from(''));
+          else return callback(null, chunk);
         })
         ctx.onResponseEnd(async (ctx, callback) => {
-          const { buffer, text } = await this.decompressResponse(Buffer.concat(responseBody), ctx.serverToProxyResponse.headers['content-encoding']);
+          let { buffer, text } = await this.decompressResponse(Buffer.concat(responseBody), ctx.serverToProxyResponse.headers['content-encoding']);
+          if (responseBodyRules.includes(2)){
+            buffer = this.applyZipImplantRules(fullUrl, buffer);
+            ctx.proxyToClientResponse.write(buffer);
+          }
           const isJson = /application\/json/.test(requestInfo.contentType);
           const isFile = /application\/octet-stream|image/.test(requestInfo.contentType);
           if (isJson) {
@@ -383,13 +461,15 @@ class AnswerProxy {
           requestInfo.originalResponse = buffer
           this.trafficCache.set(requestInfo.uuid, requestInfo);
 
+          let extracted_answers;
+
           // 答案提取
           if (isFile && requestInfo.responseBody.includes('zip')) {
             fs.mkdirSync(tempDir, { recursive: true });
             fs.mkdirSync(ansDir, { recursive: true });
             const filePath = path.join(tempDir, requestInfo.responseBody)
             await this.downloadFileByUuid(requestInfo.uuid, filePath)
-            await this.extractZipFile(filePath, ansDir)
+            extracted_answers = await this.extractZipFile(filePath, ansDir)
 
             try {
               const shouldKeepCache = await this.mainWindow.webContents.executeJavaScript(`
@@ -404,6 +484,13 @@ class AnswerProxy {
               await fs.unlink(filePath)
               await fs.rm(filePath.replace('.zip', ''), { recursive: true, force: true })
             }
+          }
+          else {
+            extracted_answers = {};
+          }
+
+          if (responseBodyRules.includes(3)) {
+            this.applyAnswerUploadRules(fullUrl, buffer, extracted_answers)
           }
 
           return callback()
@@ -496,11 +583,20 @@ class AnswerProxy {
               return;
             }
 
-            res.writeHead(200, {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*'
-            });
-            res.end(this.serverDatas[req.url]);
+            if (typeof this.serverDatas[req.url] === 'object'){
+              res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+              });
+              res.end(JSON.stringify(this.serverDatas[req.url], null, 2));
+            }
+            else {
+              res.writeHead(200, {
+                'Content-Type': 'application/octet-stream',
+                'Access-Control-Allow-Origin': '*'
+              });
+              res.end(this.serverDatas[req.url]);
+            }
           } else {
             res.writeHead(404, {
               'Content-Type': 'application/json',
@@ -531,6 +627,7 @@ class AnswerProxy {
 
   // 解压ZIP文件
   async extractZipFile(zipPath, ansDir) {
+    let mergedAnswers = {};
     try {
       const extractDir = zipPath.replace('.zip', '');
 
@@ -614,7 +711,7 @@ class AnswerProxy {
 
         if (allAnswers.length > 0) {
           // 尝试合并correctAnswer.xml和paper.xml的数据
-          const mergedAnswers = this.mergeAnswerData(allAnswers);
+          mergedAnswers = this.mergeAnswerData(allAnswers);
 
           // 保存所有答案到文件
           const answerFile = path.join(ansDir, `answers_${Date.now()}.json`);
@@ -656,6 +753,7 @@ class AnswerProxy {
     } catch (error) {
       this.safeIpcSend('process-error', { error: `解压失败: ${error.message}` });
     }
+    return mergedAnswers;
   }
 
   // 扫描目录结构
@@ -1456,261 +1554,6 @@ class AnswerProxy {
   }
   getTrafficByUuid(uuid) {
     return this.trafficCache.get(uuid)
-  }
-
-  // 检查是否是文件信息请求
-  isFileInfoRequest(url) {
-    return url.includes('https://fs.up366.cn/fileinfo/');
-  }
-
-  // 检查是否是文件请求
-  isFileRequest(url) {
-    return url.includes('https://fs-v2.up366.cn/download/');
-  }
-
-  // 处理文件信息请求
-  handleFileInfoRequest(url, clientReq, clientRes, requestOptions, ssl) {
-    console.log(`检测到文件信息请求: ${url}`);
-
-    const config = this.findLocalFile(url);
-    if (!config.enabled) {
-      const protocol = ssl ? https : http;
-      try {
-        const req = protocol.request(requestOptions, (res) => {
-          Object.keys(res.headers).forEach(key => {
-            try {
-              clientRes.setHeader(key, res.headers[key]);
-            } catch (e) {
-            }
-          });
-          clientRes.writeHead(res.statusCode);
-          res.pipe(clientRes);
-        });
-        req.on('error', (error) => {
-          console.error('文件信息请求转发错误:', error);
-          this.handleFileInfoError(clientRes, error);
-        });
-        if (clientReq.method === 'POST' || clientReq.method === 'PUT') {
-          clientReq.pipe(req);
-        } else {
-          req.end();
-        }
-      } catch (error) {
-        console.error('创建文件信息转发请求失败:', error);
-        this.handleFileInfoError(clientRes, error);
-      }
-      return;
-    }
-
-    const protocol = ssl ? https : http;
-
-    try {
-      const req = protocol.request(requestOptions, (res) => {
-        const chunks = [];
-
-        res.on('data', (chunk) => {
-          chunks.push(chunk);
-        });
-
-        res.on('end', () => {
-          try {
-            const responseBuffer = Buffer.concat(chunks);
-            let responseBody = responseBuffer.toString('utf-8');
-
-            console.log('修改文件信息响应中的MD5和大小');
-
-            const md5 = config.md5 || '1ddb71ec870ca3a6fd22d6e6c8ac18f8';
-            const size = config.size || 25329247;
-
-            responseBody = responseBody.replace(/"filemd5":"[^"]+"/g, `"filemd5":"${md5}"`);
-            responseBody = responseBody.replace(/"objectMD5":"[^"]+"/g, `"objectMD5":"${md5}"`);
-            responseBody = responseBody.replace(/"filesize":\d+/g, `"filesize":${size}`);
-            responseBody = responseBody.replace(/"objectSize":\d+/g, `"objectSize":${size}`);
-
-            const modifiedBuffer = Buffer.from(responseBody, 'utf-8');
-
-            Object.keys(res.headers).forEach(key => {
-              try {
-                if (key.toLowerCase() === 'content-length') {
-                  clientRes.setHeader(key, modifiedBuffer.length);
-                } else {
-                  clientRes.setHeader(key, res.headers[key]);
-                }
-              } catch (e) {
-              }
-            });
-
-            if (!clientRes.headersSent) {
-              clientRes.writeHead(res.statusCode);
-              clientRes.write(modifiedBuffer);
-              clientRes.end();
-            }
-
-            this.safeIpcSend('pk-request-processed', {
-              type: 'fileinfo',
-              url: url,
-              mode: 'simple'
-            });
-
-          } catch (error) {
-            console.error('处理文件信息响应失败:', error);
-            this.handleFileInfoError(clientRes, error);
-          }
-        });
-
-        res.on('error', (error) => {
-          console.error('文件信息请求响应错误:', error);
-          this.handleFileInfoError(clientRes, error);
-        });
-      });
-
-      req.on('error', (error) => {
-        console.error('文件信息请求发送错误:', error);
-        this.handleFileInfoError(clientRes, error);
-      });
-
-      req.on('timeout', () => {
-        console.log('文件信息请求超时');
-        req.destroy();
-        this.handleFileInfoError(clientRes, new Error('文件信息请求超时'));
-      });
-
-      req.setTimeout(30000);
-
-      if (clientReq.method === 'POST' || clientReq.method === 'PUT') {
-        clientReq.on('data', (chunk) => {
-          req.write(chunk);
-        });
-
-        clientReq.on('end', () => {
-          req.end();
-        });
-
-        clientReq.on('error', (error) => {
-          console.error('客户端请求流错误:', error);
-          req.destroy();
-          this.handleFileInfoError(clientRes, error);
-        });
-      } else {
-        req.end();
-      }
-
-    } catch (error) {
-      console.error('创建文件信息请求失败:', error);
-      this.handleFileInfoError(clientRes, error);
-    }
-  }
-
-  // 处理文件请求
-  handleFileRequest(url, clientReq, clientRes, requestOptions, ssl) {
-    console.log(`检测到文件请求: ${url}`);
-
-    const config = this.findLocalFile(url);
-    if (!config.enabled) {
-      const protocol = ssl ? https : http;
-      try {
-        const req = protocol.request(requestOptions, (res) => {
-          Object.keys(res.headers).forEach(key => {
-            try {
-              clientRes.setHeader(key, res.headers[key]);
-            } catch (e) {
-            }
-          });
-          clientRes.writeHead(res.statusCode);
-          res.pipe(clientRes);
-        });
-        req.on('error', (error) => {
-          console.error('文件请求转发错误:', error);
-          this.handleFileInfoError({ clientRes }, error);
-        });
-        if (clientReq.method === 'POST' || clientReq.method === 'PUT') {
-          clientReq.pipe(req);
-        } else {
-          req.end();
-        }
-      } catch (error) {
-        console.error('创建文件转发请求失败:', error);
-        this.handleFileInfoError({ clientRes }, error);
-      }
-      return;
-    }
-
-    this.handleFileRequestSimple(config, url, clientReq, clientRes, requestOptions, ssl);
-  }
-
-  // 处理文件请求
-  async handleFileRequestSimple(config, url, clientReq, clientRes, requestOptions, ssl) {
-    try {
-      console.log('使用zip替换文件响应');
-
-      const zipPath = config.zipPath;
-      const md5 = config.md5;
-      const size = config.size;
-      const md5Base64 = config.md5Base64;
-
-      if (!fs.existsSync(zipPath)) {
-        throw new Error(`zip文件不存在: ${zipPath}`);
-      }
-
-      const zipBuffer = fs.readFileSync(zipPath);
-
-      if (clientRes.destroyed) {
-        console.log('客户端连接已断开');
-        return;
-      }
-
-      try {
-        clientRes.setHeader('Content-Type', 'application/zip');
-        clientRes.setHeader('Content-Length', zipBuffer.length);
-        clientRes.setHeader('ETag', `"${md5}"`);
-        clientRes.setHeader('Content-MD5', md5Base64);
-        clientRes.setHeader('Access-Control-Allow-Origin', '*');
-        clientRes.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        clientRes.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      } catch (headerError) {
-        console.error('设置响应头失败:', headerError);
-      }
-
-      if (!clientRes.headersSent) {
-        clientRes.writeHead(200);
-        clientRes.write(zipBuffer);
-        clientRes.end();
-      }
-
-      this.safeIpcSend('pk-request-processed', {
-        type: 'file',
-        url: url,
-        mode: 'auto'
-      });
-
-      this.safeIpcSend('pk-injection-success', {
-        message: 'PK注入完成',
-        url: url,
-        newMd5: md5,
-        newSize: size
-      });
-
-    } catch (error) {
-      console.error('简单模式处理失败:', error);
-      this.handleFileInfoError(clientRes, error);
-    }
-  }
-
-  // 错误时释放请求
-  handleFileInfoError(request, error) {
-    try {
-      if (!request.clientRes.headersSent) {
-        request.clientRes.writeHead(500, { 'Content-Type': 'text/plain' });
-        request.clientRes.end(`Proxy error: ${error.message}`);
-      }
-    } catch (e) {
-      console.error('发送错误响应失败:', e);
-    }
-  }
-  // 从数据中提取答案（简化版本，仅用于兼容性）
-  extractAnswersFromData(data) {
-    // 简化版本：直接返回原始数据
-    return data;
   }
 }
 
