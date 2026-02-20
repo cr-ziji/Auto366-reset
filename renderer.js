@@ -1265,6 +1265,17 @@ function initResponseRulesFeature() {
     }
   });
 
+  document.getElementById('upload-ruleset-btn').addEventListener('click', () => {
+    loadGroupsForUpload();
+    document.getElementById('upload-ruleset-modal').style.display = 'flex';
+  });
+
+  document.getElementById('download-ruleset-btn').addEventListener('click', () => {
+    document.getElementById('download-ruleset-modal').style.display = 'flex';
+  });
+
+  initRulesetModals();
+
   // 调用规则编辑表单初始化
   initRuleEditForm();
 }
@@ -1289,7 +1300,7 @@ function initRuleEditForm() {
   if (changeTypeSelect) {
     changeTypeSelect.addEventListener('change', (e) => {
       console.log('更改类型变化:', e.target.value);
-      if (e.target.value === 'request-headers' || e.target.value === 'response-headers'){
+      if (e.target.value === 'request-headers' || e.target.value === 'response-headers') {
         document.getElementById('content-type-group').style.display = 'none';
       }
       else {
@@ -1830,7 +1841,7 @@ async function fillRuleForm(rule) {
       // 根据修改类型和操作类型显示相应的内容区域
       handleActionChange(rule.action, rule.changeType);
 
-      if (rule.changeType === 'request-headers' || rule.changeType === 'response-headers'){
+      if (rule.changeType === 'request-headers' || rule.changeType === 'response-headers') {
         document.getElementById('content-type-group').style.display = 'none';
       }
       else {
@@ -2844,3 +2855,431 @@ function showConfirm(title, message) {
 document.addEventListener('DOMContentLoaded', () => {
   initCustomModals();
 });
+// 初始化规则集上传和下载弹窗
+function initRulesetModals() {
+  const uploadModal = document.getElementById('upload-ruleset-modal');
+  const closeUpload = document.getElementById('close-upload-ruleset');
+  const cancelUpload = document.getElementById('cancel-upload-ruleset');
+  const uploadSubmit = document.getElementById('upload-ruleset-submit');
+
+  const downloadModal = document.getElementById('download-ruleset-modal');
+  const closeDownload = document.getElementById('close-download-ruleset');
+  const cancelDownload = document.getElementById('cancel-download-ruleset');
+  const getInfoBtn = document.getElementById('get-ruleset-info');
+  const downloadApplyBtn = document.getElementById('download-apply-ruleset');
+
+  closeUpload.addEventListener('click', () => {
+    uploadModal.style.display = 'none';
+    resetUploadForm();
+  });
+
+  cancelUpload.addEventListener('click', () => {
+    uploadModal.style.display = 'none';
+    resetUploadForm();
+  });
+
+  closeDownload.addEventListener('click', () => {
+    downloadModal.style.display = 'none';
+    resetDownloadForm();
+  });
+
+  cancelDownload.addEventListener('click', () => {
+    downloadModal.style.display = 'none';
+    resetDownloadForm();
+  });
+
+  uploadSubmit.addEventListener('click', () => {
+    uploadRuleset();
+  });
+
+  getInfoBtn.addEventListener('click', () => {
+    getRulesetInfo();
+  });
+
+  downloadApplyBtn.addEventListener('click', () => {
+    downloadAndApplyRuleset();
+  });
+
+  window.addEventListener('click', (event) => {
+    if (event.target === uploadModal) {
+      uploadModal.style.display = 'none';
+      resetUploadForm();
+    }
+    if (event.target === downloadModal) {
+      downloadModal.style.display = 'none';
+      resetDownloadForm();
+    }
+  });
+}
+
+// 上传规则集
+async function uploadRuleset() {
+  const name = document.getElementById('ruleset-name').value.trim();
+  const description = document.getElementById('ruleset-description').value.trim();
+  const author = document.getElementById('ruleset-author').value.trim();
+  const selectedGroup = document.getElementById('upload-group-select').value;
+
+  if (!name || !description || !author || !selectedGroup) {
+    showToast('请填写所有必填字段并选择规则分组', 'error');
+    return;
+  }
+
+  try {
+    showUploadProgress(true);
+    updateUploadProgress(0, '准备上传...');
+
+    const allRules = await window.electronAPI.getResponseRules();
+
+    let groupRules;
+    if (selectedGroup === 'ungrouped') {
+      groupRules = allRules.filter(rule => 
+        rule.isGroup !== true && (!rule.group || rule.group === '')
+      );
+    } else {
+      groupRules = allRules.filter(rule => 
+        rule.isGroup !== true && rule.group === selectedGroup
+      );
+    }
+
+    if (groupRules.length === 0) {
+      showToast('选中的分组没有规则', 'error');
+      showUploadProgress(false);
+      return;
+    }
+
+    updateUploadProgress(30, '准备规则数据...');
+
+    const cleanRules = groupRules.map(rule => {
+      const cleanRule = { ...rule };
+      delete cleanRule.group;
+      delete cleanRule.groupId;
+      delete cleanRule.isGroup;
+      return cleanRule;
+    });
+
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('description', description);
+    formData.append('author', author);
+
+    const rulesJson = JSON.stringify(cleanRules, null, 2);
+    const jsonBlob = new Blob([rulesJson], { type: 'application/json' });
+    formData.append('json', jsonBlob, `${name}.json`);
+
+    updateUploadProgress(50, '上传中...');
+
+    const response = await fetch('https://366.cyril.qzz.io/api/rulesets', {
+      method: 'POST',
+      body: formData
+    });
+
+    const result = await response.json();
+
+    if (response.ok && result.success) {
+      updateUploadProgress(100, '上传成功！');
+      showToast(`规则集上传成功！ID: ${result.data.id}`, 'success');
+
+      setTimeout(() => {
+        document.getElementById('upload-ruleset-modal').style.display = 'none';
+        resetUploadForm();
+      }, 2000);
+    } else {
+      throw new Error(result.message || '上传失败');
+    }
+  } catch (error) {
+    console.error('上传规则集失败:', error);
+    showToast(`上传失败: ${error.message}`, 'error');
+    showUploadProgress(false);
+  }
+}
+
+async function loadGroupsForUpload() {
+  try {
+    const rules = await window.electronAPI.getResponseRules();
+    const groupSelect = document.getElementById('upload-group-select');
+
+    groupSelect.innerHTML = '<option value="">请选择要上传的规则分组</option>';
+
+    const groups = new Set();
+    let hasUngrouped = false;
+
+    rules.forEach(rule => {
+      if (rule.group && rule.group.trim() !== '') {
+        groups.add(rule.group);
+      } else {
+        hasUngrouped = true;
+      }
+    });
+
+    if (hasUngrouped) {
+      const option = document.createElement('option');
+      option.value = 'ungrouped';
+      option.textContent = '未分组';
+      groupSelect.appendChild(option);
+    }
+
+    Array.from(groups).sort().forEach(group => {
+      const option = document.createElement('option');
+      option.value = group;
+      option.textContent = group;
+      groupSelect.appendChild(option);
+    });
+
+    if (groups.size === 0 && !hasUngrouped) {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = '暂无规则分组';
+      option.disabled = true;
+      groupSelect.appendChild(option);
+    }
+  } catch (error) {
+    console.error('加载规则分组失败:', error);
+    showToast('加载规则分组失败', 'error');
+  }
+}
+
+// 获取规则集信息
+async function getRulesetInfo() {
+  const rulesetId = document.getElementById('ruleset-id').value.trim();
+
+  if (!rulesetId) {
+    showToast('请输入规则集ID', 'error');
+    return;
+  }
+
+  try {
+    showDownloadProgress(true);
+    updateDownloadProgress(50, '获取规则集信息...');
+
+    const response = await fetch(`https://366.cyril.qzz.io/api/rulesets/${rulesetId}`);
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || '获取规则集信息失败');
+    }
+
+    const result = await response.json();
+    updateDownloadProgress(100, '信息获取成功！');
+
+    displayRulesetInfo(result.data);
+
+    document.getElementById('download-apply-ruleset').disabled = false;
+
+    showToast('规则集信息获取成功', 'success');
+    showDownloadProgress(false);
+
+  } catch (error) {
+    console.error('获取规则集信息失败:', error);
+    showToast(`获取信息失败: ${error.message}`, 'error');
+    showDownloadProgress(false);
+
+    document.getElementById('ruleset-info').style.display = 'none';
+    document.getElementById('download-apply-ruleset').disabled = true;
+  }
+}
+
+// 显示规则集信息
+function displayRulesetInfo(rulesetData) {
+  document.getElementById('info-name').textContent = rulesetData.name || '未知';
+  document.getElementById('info-description').textContent = rulesetData.description || '无描述';
+  document.getElementById('info-author').textContent = rulesetData.author || '未知';
+  document.getElementById('info-downloads').textContent = rulesetData.download_count || 0;
+
+  const createdAt = rulesetData.created_at ? new Date(rulesetData.created_at).toLocaleString('zh-CN') : '未知';
+  document.getElementById('info-created').textContent = createdAt;
+
+  document.getElementById('ruleset-info').style.display = 'block';
+}
+
+// 下载并应用规则集
+async function downloadAndApplyRuleset() {
+  const rulesetId = document.getElementById('ruleset-id').value.trim();
+
+  if (!rulesetId) {
+    showToast('请输入规则集ID', 'error');
+    return;
+  }
+
+  try {
+    showDownloadProgress(true);
+    updateDownloadProgress(0, '准备下载...');
+
+    const response = await fetch(`https://366.cyril.qzz.io/api/rulesets/${rulesetId}/download?type=json`);
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || '获取下载链接失败');
+    }
+
+    const result = await response.json();
+    updateDownloadProgress(30, '正在下载JSON文件...');
+
+    const fileResponse = await fetch(result.downloadUrl);
+    if (!fileResponse.ok) {
+      throw new Error('下载JSON文件失败');
+    }
+
+    const jsonText = await fileResponse.text();
+    updateDownloadProgress(60, '解析规则数据...');
+
+    let rules;
+    try {
+      rules = JSON.parse(jsonText);
+      console.log('下载的规则数据:', rules);
+      console.log('数据类型:', typeof rules);
+      console.log('是否为数组:', Array.isArray(rules));
+    } catch (parseError) {
+      throw new Error(`JSON解析失败: ${parseError.message}`);
+    }
+
+    if (!Array.isArray(rules)) {
+      console.error('规则数据不是数组格式:', rules);
+      throw new Error('下载的规则数据格式不正确，期望数组格式');
+    }
+
+    if (rules.length === 0) {
+      throw new Error('规则集为空');
+    }
+
+    const groups = rules.filter(item => item.isGroup === true);
+    const actualRules = rules.filter(item => item.isGroup !== true);
+    
+    console.log('分组数据:', groups);
+    console.log('规则数据:', actualRules);
+
+    if (actualRules.length === 0) {
+      throw new Error('规则集中没有有效的规则');
+    }
+
+    updateDownloadProgress(80, '应用规则...');
+
+    if (window.electronAPI && window.electronAPI.importResponseRulesFromData) {
+      const importResult = await window.electronAPI.importResponseRulesFromData(actualRules);
+      console.log('导入结果:', importResult);
+      if (importResult.success) {
+        updateDownloadProgress(90, '检查ZIP文件...');
+
+        try {
+          const zipResponse = await fetch(`https://366.cyril.qzz.io/api/rulesets/${rulesetId}/download?type=zip`);
+          if (zipResponse.ok) {
+            const zipResult = await zipResponse.json();
+            const zipFileResponse = await fetch(zipResult.downloadUrl);
+            if (zipFileResponse.ok) {
+              const zipBlob = await zipFileResponse.blob();
+
+              const url = window.URL.createObjectURL(zipBlob);
+              const a = document.createElement('a');
+              a.style.display = 'none';
+              a.href = url;
+              a.download = zipResult.fileName;
+              document.body.appendChild(a);
+              a.click();
+              window.URL.revokeObjectURL(url);
+              document.body.removeChild(a);
+
+              updateDownloadProgress(100, '完成！');
+              showToast(`规则集应用成功！导入了 ${importResult.count} 条规则，ZIP文件已下载`, 'success');
+            }
+          } else {
+            updateDownloadProgress(100, '完成！');
+            showToast(`规则集应用成功！导入了 ${importResult.count} 条规则`, 'success');
+          }
+        } catch (zipError) {
+          console.log('ZIP文件下载失败:', zipError);
+          updateDownloadProgress(100, '完成！');
+          showToast(`规则集应用成功！导入了 ${importResult.count} 条规则`, 'success');
+        }
+
+        loadResponseRules(); // 刷新规则列表
+      } else {
+        throw new Error(importResult.error || '规则应用失败');
+      }
+    } else {
+      throw new Error('无法应用规则，请检查系统配置');
+    }
+
+    setTimeout(() => {
+      document.getElementById('download-ruleset-modal').style.display = 'none';
+      resetDownloadForm();
+    }, 2000);
+
+  } catch (error) {
+    console.error('下载应用规则集失败:', error);
+    showToast(`操作失败: ${error.message}`, 'error');
+    showDownloadProgress(false);
+  }
+}
+
+function showUploadProgress(show) {
+  const progressDiv = document.getElementById('upload-progress');
+  const submitBtn = document.getElementById('upload-ruleset-submit');
+  const cancelBtn = document.getElementById('cancel-upload-ruleset');
+
+  if (show) {
+    if (progressDiv) progressDiv.style.display = 'block';
+    if (submitBtn) submitBtn.disabled = true;
+    if (cancelBtn) cancelBtn.disabled = true;
+  } else {
+    if (progressDiv) progressDiv.style.display = 'none';
+    if (submitBtn) submitBtn.disabled = false;
+    if (cancelBtn) cancelBtn.disabled = false;
+  }
+}
+
+function updateUploadProgress(percent, text) {
+  const progressBar = document.getElementById('upload-progress-bar');
+  const progressText = document.getElementById('upload-progress-text');
+
+  if (progressBar) {
+    progressBar.style.width = `${percent}%`;
+  }
+  if (progressText) {
+    progressText.textContent = text;
+  }
+}
+
+function showDownloadProgress(show) {
+  const progressDiv = document.getElementById('download-progress');
+  const getInfoBtn = document.getElementById('get-ruleset-info');
+  const downloadApplyBtn = document.getElementById('download-apply-ruleset');
+  const cancelBtn = document.getElementById('cancel-download-ruleset');
+
+  if (show) {
+    if (progressDiv) progressDiv.style.display = 'block';
+    if (getInfoBtn) getInfoBtn.disabled = true;
+    if (downloadApplyBtn) downloadApplyBtn.disabled = true;
+    if (cancelBtn) cancelBtn.disabled = true;
+  } else {
+    if (progressDiv) progressDiv.style.display = 'none';
+    if (getInfoBtn) getInfoBtn.disabled = false;
+    if (downloadApplyBtn) downloadApplyBtn.disabled = false;
+    if (cancelBtn) cancelBtn.disabled = false;
+  }
+}
+
+function updateDownloadProgress(percent, text) {
+  const progressBar = document.getElementById('download-progress-bar');
+  const progressText = document.getElementById('download-progress-text');
+
+  if (progressBar) {
+    progressBar.style.width = `${percent}%`;
+  }
+  if (progressText) {
+    progressText.textContent = text;
+  }
+}
+
+function resetUploadForm() {
+  document.getElementById('ruleset-name').value = '';
+  document.getElementById('ruleset-description').value = '';
+  document.getElementById('ruleset-author').value = '';
+  document.getElementById('upload-group-select').value = '';
+  showUploadProgress(false);
+}
+
+function resetDownloadForm() {
+  document.getElementById('ruleset-id').value = '';
+  document.getElementById('ruleset-info').style.display = 'none';
+  document.getElementById('download-apply-ruleset').disabled = true;
+  showDownloadProgress(false);
+}

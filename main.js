@@ -296,6 +296,48 @@ ipcMain.handle('import-response-rules', async () => {
   return { success: false, error: '用户取消操作' };
 });
 
+ipcMain.handle('import-response-rules-from-data', async (event, rulesData) => {
+  try {
+    let rules;
+    if (typeof rulesData === 'string') {
+      rules = JSON.parse(rulesData);
+    } else {
+      rules = rulesData;
+    }
+
+    if (Array.isArray(rules)) {
+      const actualRules = rules.filter(item => item.isGroup !== true);
+      
+      if (actualRules.length === 0) {
+        return { success: false, error: '没有找到有效的规则数据' };
+      }
+
+      const importedRules = actualRules.map(rule => {
+        const cleanRule = { ...rule };
+        delete cleanRule.groupId;
+        delete cleanRule.isGroup;
+        
+        return {
+          ...cleanRule,
+          id: require('uuid').v4(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+      });
+
+      const currentRules = answerProxy.getResponseRules();
+      answerProxy.responseRules = [...currentRules, ...importedRules];
+      answerProxy.saveResponseRules();
+
+      return { success: true, count: importedRules.length };
+    } else {
+      return { success: false, error: '无效的规则数据格式' };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('clear-cache', async () => {
   try {
     await answerProxy.clearCache()

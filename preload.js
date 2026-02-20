@@ -69,6 +69,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   toggleResponseRule: (ruleId, enabled) => ipcRenderer.invoke('toggle-response-rule', ruleId, enabled),
   exportResponseRules: () => ipcRenderer.invoke('export-response-rules'),
   importResponseRules: () => ipcRenderer.invoke('import-response-rules'),
+  importResponseRulesFromData: (rulesData) => ipcRenderer.invoke('import-response-rules-from-data', rulesData),
 
   // 更新相关API
   checkForUpdates: () => ipcRenderer.send('check-for-updates'),

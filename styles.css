@@ -652,7 +652,7 @@ button:disabled {
         flex-direction: column;
         gap: 10px;
     }
-    
+
     .status-item {
         flex: none;
         width: 100%;
@@ -1749,9 +1749,13 @@ button:disabled {
 
 /* 心跳动画 */
 @keyframes heartbeat {
-    0%, 50%, 100% {
+
+    0%,
+    50%,
+    100% {
         transform: scale(1);
     }
+
     25% {
         transform: scale(1.1);
     }
@@ -1770,17 +1774,17 @@ button:disabled {
         right: auto;
         transform: translateX(-50%);
     }
-    
+
     .appreciation-qr-container {
         flex-direction: column;
         gap: 10px;
     }
-    
+
     .appreciation-qr {
         max-width: 150px;
         max-height: 150px;
     }
-    
+
     .appreciation-icon:hover .appreciation-popup {
         transform: translateX(-50%) translateY(-5px);
     }
@@ -1848,7 +1852,9 @@ button:disabled {
     border-radius: 4px;
     transition: width 0.3s ease;
     width: 0%;
-}/*
+}
+
+/*
  替换选项样式 */
 .replace-options {
     margin-bottom: 10px;
@@ -1950,4 +1956,128 @@ button:disabled {
 
 .header-type-select {
     width: auto !important;
+}
+
+.upload-btn,
+.download-btn,
+.apply-btn,
+.info-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: 8px;
+    transition: background-color 0.3s;
+}
+
+.upload-btn:hover {
+    background: #218838;
+}
+
+.download-btn {
+    background: #17a2b8;
+}
+
+.download-btn:hover {
+    background: #138496;
+}
+
+.apply-btn {
+    background: #fd7e14;
+}
+
+.apply-btn:hover {
+    background: #e8690b;
+}
+
+.info-btn {
+    background: #6c757d;
+}
+
+.info-btn:hover {
+    background: #5a6268;
+}
+
+.upload-ruleset-modal,
+.download-ruleset-modal {
+    max-width: 500px;
+    width: 90%;
+}
+
+.upload-form,
+.download-form {
+    padding: 20px 0;
+}
+
+.file-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.file-input-group input[type="file"] {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+}
+
+.file-input-group small {
+    color: #666;
+    font-size: 12px;
+}
+
+.ruleset-info {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 15px 0;
+}
+
+.ruleset-info h4 {
+    margin: 0 0 10px 0;
+    color: #495057;
+}
+
+.info-item {
+    margin: 8px 0;
+    font-size: 14px;
+}
+
+.info-item strong {
+    color: #495057;
+    min-width: 80px;
+    display: inline-block;
+}
+
+.upload-progress,
+.download-progress {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background: #f0f0f0;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #06f355;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+#upload-progress-text,
+#download-progress-text {
+    font-size: 14px;
+    color: #666;
 }

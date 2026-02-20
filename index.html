@@ -176,11 +176,13 @@
                     <button id="add-group-btn" class="add-group-btn">新建分组</button>
                     <button id="import-rules-btn" class="import-btn">导入规则</button>
                     <button id="export-rules-btn" class="export-btn">导出规则</button>
+                    <button id="upload-ruleset-btn" class="upload-btn">上传规则集</button>
+                    <button id="download-ruleset-btn" class="download-btn">下载规则集</button>
                     <div class="rules-status">
                         <span id="rules-count">规则数量: 0</span>
                         <span id="active-rules-count">启用: 0</span>
                     </div>
-                </div>
+                </div></div>
                 <div class="rules-list" id="rules-list">
                     <div class="no-rules">暂无规则，点击"新建规则"开始添加</div>
                 </div>
@@ -501,6 +503,93 @@
                 <div class="confirm-actions">
                     <button id="confirm-cancel" class="cancel-btn">取消</button>
                     <button id="confirm-ok" class="save-btn">确定</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 上传规则集弹窗 -->
+    <div id="upload-ruleset-modal" class="modal">
+        <div class="modal-content upload-ruleset-modal">
+            <div class="modal-header">
+                <h2>上传规则集</h2>
+                <span class="close" id="close-upload-ruleset">&times;</span>
+            </div>
+            <div class="upload-form">
+                <div class="form-group">
+                    <label for="ruleset-name">规则集名称:</label>
+                    <input type="text" id="ruleset-name" placeholder="请输入规则集名称" required>
+                </div>
+                <div class="form-group">
+                    <label for="ruleset-description">规则集描述:</label>
+                    <textarea id="ruleset-description" rows="3" placeholder="请输入规则集描述" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="ruleset-author">作者:</label>
+                    <input type="text" id="ruleset-author" placeholder="请输入作者名称" required>
+                </div>
+                <div class="form-group">
+                    <label for="upload-group-select">选择规则分组:</label>
+                    <select id="upload-group-select" required>
+                        <option value="">请选择要上传的规则分组</option>
+                    </select>
+                    <small>选择要上传的现有规则分组</small>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="upload-ruleset-submit" class="save-btn">上传规则集</button>
+                    <button type="button" id="cancel-upload-ruleset" class="cancel-btn">取消</button>
+                </div>
+                <div id="upload-progress" class="upload-progress" style="display: none;">
+                    <div class="progress-bar">
+                        <div id="upload-progress-bar" class="progress-fill"></div>
+                    </div>
+                    <span id="upload-progress-text">上传中...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 下载规则集弹窗 -->
+    <div id="download-ruleset-modal" class="modal">
+        <div class="modal-content download-ruleset-modal">
+            <div class="modal-header">
+                <h2>下载并应用规则集</h2>
+                <span class="close" id="close-download-ruleset">&times;</span>
+            </div>
+            <div class="download-form">
+                <div class="form-group">
+                    <label for="ruleset-id">规则集ID:</label>
+                    <input type="text" id="ruleset-id" placeholder="请输入规则集ID" required>
+                    <small>输入要下载的规则集ID</small>
+                </div>
+                <div id="ruleset-info" class="ruleset-info" style="display: none;">
+                    <h4>规则集信息</h4>
+                    <div class="info-item">
+                        <strong>名称:</strong> <span id="info-name"></span>
+                    </div>
+                    <div class="info-item">
+                        <strong>描述:</strong> <span id="info-description"></span>
+                    </div>
+                    <div class="info-item">
+                        <strong>作者:</strong> <span id="info-author"></span>
+                    </div>
+                    <div class="info-item">
+                        <strong>下载次数:</strong> <span id="info-downloads"></span>
+                    </div>
+                    <div class="info-item">
+                        <strong>创建时间:</strong> <span id="info-created"></span>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="get-ruleset-info" class="info-btn">获取信息</button>
+                    <button type="button" id="download-apply-ruleset" class="save-btn" disabled>下载并应用</button>
+                    <button type="button" id="cancel-download-ruleset" class="cancel-btn">取消</button>
+                </div>
+                <div id="download-progress" class="download-progress" style="display: none;">
+                    <div class="progress-bar">
+                        <div id="download-progress-bar" class="progress-fill"></div>
+                    </div>
+                    <span id="download-progress-text">处理中...</span>
                 </div>
             </div>
         </div>
