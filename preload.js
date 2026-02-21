@@ -1,6 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron')
 const fs = require('fs')
 const path = require('path')
+const { v4 : uuidv4 } = require('uuid')
+const { Blob } = require('buffer')
 
 let cachePath = 'D:\\Up366StudentFiles'
 
@@ -78,5 +80,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, data) => callback(data)),
   onUpdateNotAvailable: (callback) => ipcRenderer.on('update-not-available', (event, data) => callback(data)),
   onUpdateDownloadProgress: (callback) => ipcRenderer.on('update-download-progress', (event, data) => callback(data)),
-  onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', callback)
+  onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', callback),
+
+  getFileBlob: (filePath) => {
+    return fs.readFileSync(filePath);
+  },
+  getFileName: (filePath) => {
+    return uuidv4() + path.extname(filePath);
+  }
 })

@@ -1421,8 +1421,8 @@ async function loadResponseRules() {
 
 // 更新规则状态显示
 function updateRulesStatus(rules) {
-  const totalCount = rules.length;
-  const enabledCount = rules.filter(rule => rule.enabled).length;
+  const totalCount = rules.filter(rule => !rule.isGroup).length;
+  const enabledCount = rules.filter(rule => !rule.isGroup&&rule.enabled).length;
 
   const rulesCountElement = document.getElementById('rules-count');
   const activeRulesCountElement = document.getElementById('active-rules-count');
@@ -2917,9 +2917,9 @@ async function uploadRuleset() {
   const name = document.getElementById('ruleset-name').value.trim();
   const description = document.getElementById('ruleset-description').value.trim();
   const author = document.getElementById('ruleset-author').value.trim();
-  const selectedGroup = document.getElementById('upload-group-select').value;
+  const selectedGroupId = document.getElementById('upload-group-select').value;
 
-  if (!name || !description || !author || !selectedGroup) {
+  if (!name || !description || !author || !selectedGroupId) {
     showToast('请填写所有必填字段并选择规则分组', 'error');
     return;
   }
@@ -2930,16 +2930,7 @@ async function uploadRuleset() {
 
     const allRules = await window.electronAPI.getResponseRules();
 
-    let groupRules;
-    if (selectedGroup === 'ungrouped') {
-      groupRules = allRules.filter(rule => 
-        rule.isGroup !== true && (!rule.group || rule.group === '')
-      );
-    } else {
-      groupRules = allRules.filter(rule => 
-        rule.isGroup !== true && rule.group === selectedGroup
-      );
-    }
+    let groupRules = allRules.filter(rule => rule.id === selectedGroupId || rule.groupId === selectedGroupId);
 
     if (groupRules.length === 0) {
       showToast('选中的分组没有规则', 'error');
@@ -2947,45 +2938,73 @@ async function uploadRuleset() {
       return;
     }
 
-    updateUploadProgress(30, '准备规则数据...');
-
-    const cleanRules = groupRules.map(rule => {
-      const cleanRule = { ...rule };
-      delete cleanRule.group;
-      delete cleanRule.groupId;
-      delete cleanRule.isGroup;
-      return cleanRule;
-    });
+    updateUploadProgress(0, '准备规则数据与文件...');
 
     const formData = new FormData();
     formData.append('name', name);
     formData.append('description', description);
     formData.append('author', author);
 
-    const rulesJson = JSON.stringify(cleanRules, null, 2);
+    for (let rule of groupRules){
+      if (rule.type === 'zip-implant'){
+        const fileBlob = new Blob(window.electronAPI.getFileBlob(rule.zipImplant));
+        const fileName = window.electronAPI.getFileName(rule.zipImplant);
+        formData.append('files', fileBlob, fileName);
+        rule.zipImplant = 'https://objectstorageapi.us-west-1.clawcloudrun.com/d9k8xp0t-auto366-ruleset/files/'+fileName
+      }
+    }
+
+    const rulesJson = JSON.stringify(groupRules, null, 2);
     const jsonBlob = new Blob([rulesJson], { type: 'application/json' });
     formData.append('json', jsonBlob, `${name}.json`);
 
-    updateUploadProgress(50, '上传中...');
+    updateUploadProgress(0, '上传中...');
 
-    const response = await fetch('https://366.cyril.qzz.io/api/rulesets', {
-      method: 'POST',
-      body: formData
+    const xhr = new XMLHttpRequest();
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) {
+        const percentComplete = (event.loaded / event.total) * 100;
+        updateUploadProgress(percentComplete, '上传中...');
+      }
     });
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const result = JSON.parse(xhr.responseText);
+          if (result.success) {
+            updateUploadProgress(100, '上传成功！');
+            showToast(`规则集上传成功！ID: ${result.data.id}`, 'success');
 
-    const result = await response.json();
-
-    if (response.ok && result.success) {
-      updateUploadProgress(100, '上传成功！');
-      showToast(`规则集上传成功！ID: ${result.data.id}`, 'success');
-
-      setTimeout(() => {
-        document.getElementById('upload-ruleset-modal').style.display = 'none';
-        resetUploadForm();
-      }, 2000);
-    } else {
-      throw new Error(result.message || '上传失败');
-    }
+            setTimeout(() => {
+              document.getElementById('upload-ruleset-modal').style.display = 'none';
+              resetUploadForm();
+            }, 2000);
+          } else {
+            throw new Error(result.message || '上传失败');
+          }
+        } catch (error) {
+          console.error('处理响应时出错:', error);
+          showToast(error.message || '上传失败', 'error');
+          updateUploadProgress(0, '上传失败');
+        }
+      } else {
+        console.error('HTTP 错误:', xhr.status, xhr.statusText);
+        showToast(`上传失败: HTTP ${xhr.status}`, 'error');
+        updateUploadProgress(0, '上传失败');
+      }
+    });
+    xhr.addEventListener('error', () => {
+      console.error('网络错误');
+      showToast('网络错误，请检查连接', 'error');
+      updateUploadProgress(0, '上传失败');
+    });
+    xhr.addEventListener('timeout', () => {
+      console.error('请求超时');
+      showToast('上传超时，请重试', 'error');
+      updateUploadProgress(0, '上传失败');
+    });
+    xhr.open('POST', 'https://366.cyril.qzz.io/api/rulesets');
+    xhr.send(formData);
   } catch (error) {
     console.error('上传规则集失败:', error);
     showToast(`上传失败: ${error.message}`, 'error');
@@ -3001,31 +3020,21 @@ async function loadGroupsForUpload() {
     groupSelect.innerHTML = '<option value="">请选择要上传的规则分组</option>';
 
     const groups = new Set();
-    let hasUngrouped = false;
 
     rules.forEach(rule => {
-      if (rule.group && rule.group.trim() !== '') {
-        groups.add(rule.group);
-      } else {
-        hasUngrouped = true;
+      if (rule.isGroup) {
+        groups.add(rule);
       }
     });
 
-    if (hasUngrouped) {
+    Array.from(groups).forEach(group => {
       const option = document.createElement('option');
-      option.value = 'ungrouped';
-      option.textContent = '未分组';
-      groupSelect.appendChild(option);
-    }
-
-    Array.from(groups).sort().forEach(group => {
-      const option = document.createElement('option');
-      option.value = group;
-      option.textContent = group;
+      option.value = group.id;
+      option.textContent = group.name;
       groupSelect.appendChild(option);
     });
 
-    if (groups.size === 0 && !hasUngrouped) {
+    if (groups.size === 0) {
       const option = document.createElement('option');
       option.value = '';
       option.textContent = '暂无规则分组';
@@ -3104,7 +3113,7 @@ async function downloadAndApplyRuleset() {
     showDownloadProgress(true);
     updateDownloadProgress(0, '准备下载...');
 
-    const response = await fetch(`https://366.cyril.qzz.io/api/rulesets/${rulesetId}/download?type=json`);
+    const response = await fetch(`https://366.cyril.qzz.io/api/rulesets/${rulesetId}/download`);
 
     if (!response.ok) {
       const error = await response.json();
